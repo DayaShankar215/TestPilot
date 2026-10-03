@@ -23,7 +23,7 @@ import { Tabs, TabPanel } from '../../../components/common/Tabs'
 import { Alert, ErrorState } from '../../../components/feedback/States'
 import { FormField, Input, Select } from '../../../components/forms/FormControls'
 import { DataTable } from '../../../components/tables/DataTable'
-import { settingsApi, notificationsApi } from '../../../services/endpoints'
+import { workspacesApi, usersApi, notificationsApi } from '../../../services/endpoints'
 import { useApi } from '../../../hooks/useApi'
 import { useToast } from '../../../context/ToastContext'
 import { useAuth } from '../../../context/AuthContext'
@@ -84,12 +84,12 @@ function MembersPanel() {
   const [removing, setRemoving] = useState(null)
   const [busy, setBusy] = useState(false)
 
-  const membersFetcher = useMemo(() => () => settingsApi.members(), [])
+  const membersFetcher = useMemo(() => () => workspacesApi.members(), [])
   const { data: members, isLoading, isError, error, refetch } = useApi(membersFetcher, [])
 
   const changeRole = async (member, role) => {
     try {
-      await settingsApi.updateMember(member.id, { role })
+      await workspacesApi.updateMember(member.id, { role })
       toast.success('Role updated', `${member.name} is now ${MEMBERSHIP_ROLE[role]?.label ?? role}.`)
       refetch()
     } catch (caught) {
@@ -101,7 +101,7 @@ function MembersPanel() {
     const member = removing
     setRemoving(null)
     try {
-      await settingsApi.removeMember(member.id)
+      await workspacesApi.removeMember(member.id)
       toast.info('Member removed', `${member.name} no longer has workspace access.`)
       refetch()
     } catch (caught) {
@@ -269,7 +269,7 @@ function InviteModal({ isOpen, onClose, onInvited, onError, busy, setBusy }) {
     }
     setBusy(true)
     try {
-      await settingsApi.inviteMember({ ...form, email: form.email.trim() })
+      await workspacesApi.addMember({ ...form, email: form.email.trim() })
       onInvited(form)
     } catch (caught) {
       onError(caught?.message)
@@ -347,7 +347,7 @@ function WorkspacePanel() {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  const workspaceFetcher = useMemo(() => () => settingsApi.workspace(), [])
+  const workspaceFetcher = useMemo(() => () => workspacesApi.current(), [])
   const { data: workspace, isLoading, isError, error, refetch } = useApi(workspaceFetcher, [])
 
   useEffect(() => {
@@ -357,7 +357,7 @@ function WorkspacePanel() {
   const save = async () => {
     setSaving(true)
     try {
-      await settingsApi.updateWorkspace(form)
+      await workspacesApi.updateCurrent(form)
       toast.success('Workspace updated', 'Changes apply immediately.')
       refetch()
     } catch (caught) {
@@ -428,7 +428,7 @@ function NotificationsPanel() {
   const notificationsFetcher = useMemo(() => () => notificationsApi.list(), [])
   const { data: notifications, refetch } = useApi(notificationsFetcher, [])
 
-  const preferencesFetcher = useMemo(() => () => settingsApi.preferences(), [])
+  const preferencesFetcher = useMemo(() => () => usersApi.preferences(), [])
   const { data: preferences, setData } = useApi(preferencesFetcher, [])
   const [saving, setSaving] = useState(false)
 
@@ -446,7 +446,7 @@ function NotificationsPanel() {
   const save = async () => {
     setSaving(true)
     try {
-      await settingsApi.updatePreferences({
+      await usersApi.updatePreferences({
         notificationPreferences: {
           email: preferences.notificationPreferences?.email ?? {},
           inApp: preferences.notificationPreferences?.inApp ?? {},
@@ -607,7 +607,7 @@ function PreferencesPanel() {
     },
   })
 
-  const profileFetcher = useMemo(() => () => settingsApi.preferences(), [])
+  const profileFetcher = useMemo(() => () => usersApi.preferences(), [])
   const { data: preferences } = useApi(profileFetcher, [])
 
   useEffect(() => {
@@ -625,7 +625,7 @@ function PreferencesPanel() {
   const onSubmit = async (values) => {
     setSaving(true)
     try {
-      await settingsApi.updatePreferences(values)
+      await usersApi.updatePreferences(values)
       toast.success('Preferences saved', 'Tables and dates will use these settings.')
     } catch (caught) {
       toast.error('Could not save preferences', caught?.message)

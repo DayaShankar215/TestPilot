@@ -26,7 +26,7 @@ import { Avatar } from '../../../components/common/Avatar'
 import { ExecutionTrendChart, ModuleCoverageChart, ResultDistributionChart, SeverityBarChart } from '../../../components/charts/Charts'
 import { ErrorState } from '../../../components/feedback/States'
 import { Alert } from '../../../components/feedback/States'
-import { dashboardApi } from '../../../services/endpoints'
+import { projectsApi } from '../../../services/endpoints'
 import { useApi } from '../../../hooks/useApi'
 import { useActiveProject } from '../../../context/ActiveProjectContext'
 import { usePermissions } from '../../../context/PermissionsContext'
@@ -46,14 +46,16 @@ export function DashboardPage() {
   const { can } = usePermissions()
   const [days, setDays] = useState(30)
 
+  // The spec scopes the dashboard to a single project; the workspace-wide view
+  // falls back to the project list until a cross-project route is defined.
   const fetcher = useMemo(
-    () => () => dashboardApi.summary({ projectId: activeProjectId, days }),
-    [activeProjectId, days],
+    () => () => (isAll ? projectsApi.list({ pageSize: 200 }) : projectsApi.dashboard(activeProjectId, { days })),
+    [activeProjectId, days, isAll],
   )
 
-  const { data, isLoading, isError, error, refetch } = useApi(fetcher, [activeProjectId, days])
+  const { data, isLoading, isError, error, refetch } = useApi(fetcher, [activeProjectId, days, isAll])
 
-  const kpis = data?.kpis
+  const kpis = isAll ? null : data?.kpis
 
   return (
     <div className="page">
