@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { prisma } from '../config/database.js'
 import { env } from '../config/env.js'
 import { ApiError } from '../utils/apiError.js'
@@ -9,7 +9,7 @@ const PUBLIC_USER_SELECT = {
   id: true,
   name: true,
   email: true,
-  jobTitle: true,
+  title: true,
   avatarUrl: true,
   isActive: true,
   createdAt: true,
@@ -46,17 +46,8 @@ export async function register({ name, email, password, workspaceName }, req) {
       },
     })
 
-    await tx.preference.create({
-      data: {
-        userId: created.id,
-        theme: 'system',
-        density: 'comfortable',
-        defaultPageSize: 25,
-        locale: 'en-IN',
-        timezone: 'Asia/Kolkata',
-        emailNotifications: true,
-        notificationFrequency: 'daily',
-      },
+    await tx.userPreference.create({
+      data: { userId: created.id, timezone: 'Asia/Kolkata' },
     })
 
     return { ...created, workspaceId: workspace.id }
@@ -90,7 +81,7 @@ export async function currentUser(auth) {
       where: { userId: auth.user.id },
       include: { workspace: { select: { id: true, name: true, slug: true, plan: true } } },
     }),
-    prisma.preference.findUnique({ where: { userId: auth.user.id } }),
+    prisma.userPreference.findUnique({ where: { userId: auth.user.id } }),
   ])
 
   return {
@@ -98,8 +89,9 @@ export async function currentUser(auth) {
       id: auth.user.id,
       name: auth.user.name,
       email: auth.user.email,
-      jobTitle: auth.user.jobTitle,
+      title: auth.user.title,
       avatarUrl: auth.user.avatarUrl,
+      timezone: auth.user.timezone,
       createdAt: auth.user.createdAt,
     },
     preferences: preferences ?? null,
@@ -134,9 +126,8 @@ export async function changePassword(auth, { currentPassword, newPassword }, req
   const valid = await bcrypt.compare(currentPassword, user.passwordHash)
   if (!valid) throw ApiError.validation([{ field: 'currentPassword', message: 'Current password is incorrect' }])
 
-  const passwordHash = await hashPassword(newPassword)
-
   // Changing a password invalidates every other session, then keeps this one.
+  await prisma.user.update({ where: { id: auth.user.id }, data: { passwordHash: await hashPassword(newPassword) } })
   await revokeAllUserSessions(auth.user.id)
   const created = await createSession({ user, req })
 
@@ -150,7 +141,11 @@ export async function requestPasswordReset(email) {
 
   const token = randomToken()
   await prisma.passwordResetToken.create({
-    data: { userId: user.id, token: sha256(token), expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
+    data: {
+      userId: user.id,
+      tokenHash: sha256(token),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    },
   })
 
   return { sent: true, resetToken: token, user }
@@ -158,7 +153,7 @@ export async function requestPasswordReset(email) {
 
 export async function resetPassword({ token, password }) {
   const reset = await prisma.passwordResetToken.findFirst({
-    where: { token: sha256(token), usedAt: null, expiresAt: { gt: new Date() } },
+    where: { tokenHash: sha256(token), usedAt: null, expiresAt: { gt: new Date() } },
   })
   if (!reset) throw ApiError.badRequest('This reset link is invalid or has expired.')
 

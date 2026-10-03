@@ -38,12 +38,20 @@ export const changePasswordSchema = z.object({
 
 export const preferencesSchema = z.object({
   theme: z.enum(['system', 'light', 'dark']).default('system'),
-  density: z.enum(['comfortable', 'compact']).default('comfortable'),
+  timezone: z.string().trim().min(1).max(40).default('UTC'),
+  dateFormat: z.string().trim().min(1).max(20).default('dd MMM yyyy'),
+  weekStartsOn: z.enum(['monday', 'sunday']).default('monday'),
+  compactTables: z.boolean().default(false),
   defaultPageSize: z.coerce.number().int().min(5).max(100).default(25),
-  locale: z.string().trim().min(2).max(10).default('en-IN'),
-  timezone: z.string().trim().min(1).max(40).default('Asia/Kolkata'),
-  emailNotifications: z.boolean().default(true),
-  notificationFrequency: z.enum(['immediate', 'daily', 'off']).default('daily'),
+  notificationSettings: z
+    .object({
+      email: z.boolean().default(true),
+      inApp: z.boolean().default(true),
+      defectAssigned: z.boolean().default(true),
+      runCompleted: z.boolean().default(true),
+    })
+    .partial()
+    .nullish(),
 })
 
 export const userParamsSchema = z.object({ userId: z.string().min(1) })

@@ -3,8 +3,9 @@ import { preferencesSchema } from '../auth/auth.schemas.js'
 
 export const profileSchema = z.object({
   name: z.string().trim().min(2).max(80),
-  jobTitle: z.string().trim().max(80).nullish(),
+  title: z.string().trim().max(80).nullish(),
   avatarUrl: z.string().trim().url('Avatar must be a valid URL').max(500).nullish(),
+  timezone: z.string().trim().min(1).max(40),
 })
 
 export const preferencesUpdateSchema = preferencesSchema.partial()

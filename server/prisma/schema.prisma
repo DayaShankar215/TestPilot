@@ -12,23 +12,23 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   name         String
   passwordHash String
   title        String?
-  timezone     String   @default("UTC")
+  timezone     String    @default("UTC")
   avatarUrl    String?
-  isActive     Boolean  @default(true)
+  isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   workspaceMemberships WorkspaceMember[]
   projectMemberships   ProjectMember[]
   sessions             Session[]
   resetTokens          PasswordResetToken[]
-  createdProjects      Project[]         @relation("ProjectCreator")
+  createdProjects      Project[]            @relation("ProjectCreator")
   activityLogs         ActivityLog[]
   notifications        Notification[]
 
@@ -36,7 +36,6 @@ model User {
   aiUsage     AiGeneration[]
 
   ownedWorkspaces     Workspace[]          @relation("WorkspaceOwner")
-  createdProjects     Project[]            @relation("ProjectCreator")
   createdRequirements Requirement[]        @relation("RequirementCreator")
   ownedRequirements   Requirement[]        @relation("RequirementOwner")
   requirementVersions RequirementVersion[]
@@ -56,17 +55,17 @@ model User {
 }
 
 model UserPreference {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  theme           String   @default("system")
-  timezone        String   @default("UTC")
-  dateFormat      String   @default("dd MMM yyyy")
-  weekStartsOn    String   @default("monday")
-  compactTables   Boolean  @default(false)
-  defaultPageSize Int      @default(25)
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  theme                String   @default("system")
+  timezone             String   @default("UTC")
+  dateFormat           String   @default("dd MMM yyyy")
+  weekStartsOn         String   @default("monday")
+  compactTables        Boolean  @default(false)
+  defaultPageSize      Int      @default(25)
   notificationSettings Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -74,16 +73,16 @@ model UserPreference {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  csrfToken String
-  userAgent String?
-  ipAddress String?
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime @default(now())
-  lastSeenAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  token      String    @unique
+  csrfToken  String
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -107,17 +106,17 @@ model PasswordResetToken {
 }
 
 model Workspace {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  plan        String   @default("business")
-  ownerId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("business")
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  owner     User               @relation("WorkspaceOwner", fields: [ownerId], references: [id])
-  members   WorkspaceMember[]
-  projects  Project[]
+  owner    User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members  WorkspaceMember[]
+  projects Project[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -164,18 +163,18 @@ model Project {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  owner     User?            @relation("ProjectCreator", fields: [ownerId], references: [id])
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner     User?           @relation("ProjectCreator", fields: [ownerId], references: [id])
   members   ProjectMember[]
 
-  requirements      Requirement[]
-  testCases         TestCase[]
-  testRuns          TestRun[]
-  defects           Defect[]
+  requirements       Requirement[]
+  testCases          TestCase[]
+  testRuns           TestRun[]
+  defects            Defect[]
   moduleDependencies ModuleDependency[]
-  regressionPlans   RegressionPlan[]
-  automationJobs    AutomationJob[]
-  activityLogs      ActivityLog[]
+  regressionPlans    RegressionPlan[]
+  automationJobs     AutomationJob[]
+  activityLogs       ActivityLog[]
 
   @@unique([workspaceId, key])
   @@index([workspaceId, status])
@@ -242,11 +241,12 @@ model Requirement {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  project   Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy User                 @relation("RequirementCreator", fields: [createdById], references: [id])
-  owner    User?                 @relation("RequirementOwner", fields: [ownerId], references: [id])
-  versions RequirementVersion[]
-  links    RequirementTestCase[]
+  project       Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy     User                  @relation("RequirementCreator", fields: [createdById], references: [id])
+  owner         User?                 @relation("RequirementOwner", fields: [ownerId], references: [id])
+  versions      RequirementVersion[]
+  links         RequirementTestCase[]
+  aiGenerations AiGeneration[]
 
   @@unique([projectId, ref])
   @@index([projectId, status])
@@ -256,7 +256,7 @@ model Requirement {
 }
 
 model RequirementVersion {
-  id                 String   @id @default(cuid())
+  id                 String            @id @default(cuid())
   requirementId      String
   version            Int
   title              String
@@ -267,7 +267,7 @@ model RequirementVersion {
   status             RequirementStatus
   changeNote         String?
   changedById        String
-  createdAt          DateTime @default(now())
+  createdAt          DateTime          @default(now())
 
   requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   changedBy   User        @relation(fields: [changedById], references: [id])
@@ -298,32 +298,33 @@ enum TestCaseStatus {
 }
 
 model TestCase {
-  id            String         @id @default(cuid())
-  projectId     String
-  ref           String
-  title         String
-  description   String?
-  preconditions String?
-  testData      String?
-  type          TestCaseType   @default(functional)
-  priority      Priority       @default(medium)
-  status        TestCaseStatus @default(draft)
-  isAutomated   Boolean        @default(false)
-  source        String         @default("manual")
+  id             String         @id @default(cuid())
+  projectId      String
+  ref            String
+  title          String
+  description    String?
+  preconditions  String?
+  testData       String?
+  type           TestCaseType   @default(functional)
+  priority       Priority       @default(medium)
+  status         TestCaseStatus @default(draft)
+  isAutomated    Boolean        @default(false)
+  source         String         @default("manual")
   aiGenerationId String?
-  createdById   String
-  version       Int            @default(1)
-  archivedAt    DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdById    String
+  version        Int            @default(1)
+  archivedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  project     Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy   User                     @relation(fields: [createdById], references: [id])
-  steps       TestStep[]
-  requirementLinks RequirementTestCase[]
-  versions    TestCaseVersion[]
-  results     TestResult[]
-  aiGeneration AiGeneration?           @relation(fields: [aiGenerationId], references: [id])
+  project              Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy            User                    @relation(fields: [createdById], references: [id])
+  steps                TestStep[]
+  requirementLinks     RequirementTestCase[]
+  versions             TestCaseVersion[]
+  results              TestResult[]
+  aiGeneration         AiGeneration?           @relation(fields: [aiGenerationId], references: [id])
+  automationSelections AutomationJobTestCase[]
 
   @@unique([projectId, ref])
   @@index([projectId, status])
@@ -350,7 +351,7 @@ model TestStep {
 }
 
 model TestCaseVersion {
-  id          String       @id @default(cuid())
+  id          String         @id @default(cuid())
   testCaseId  String
   version     Int
   title       String
@@ -361,9 +362,9 @@ model TestCaseVersion {
   steps       Json
   changeNote  String?
   changedById String
-  createdAt   DateTime     @default(now())
+  createdAt   DateTime       @default(now())
 
-  testCase TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  testCase  TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
   changedBy User     @relation(fields: [changedById], references: [id])
 
   @@unique([testCaseId, version])
@@ -395,7 +396,7 @@ enum TestRunStatus {
   aborted
 }
 
-enum TestResult {
+enum ResultStatus {
   pass
   fail
   blocked
@@ -418,11 +419,11 @@ model TestRun {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy User           @relation(fields: [createdById], references: [id])
-  plan      RegressionPlan? @relation(fields: [planId], references: [id])
-  results   TestResult[]
-  retestedDefects Defect[]  @relation("DefectRetestRun")
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy       User            @relation(fields: [createdById], references: [id])
+  plan            RegressionPlan? @relation(fields: [planId], references: [id])
+  results         TestResult[]
+  retestedDefects Defect[]        @relation("DefectRetestRun")
 
   @@index([projectId, status])
   @@index([projectId, createdAt])
@@ -431,28 +432,28 @@ model TestRun {
 }
 
 model TestResult {
-  id               String     @id @default(cuid())
-  runId            String
-  testCaseId       String
-  attempt          Int        @default(1)
-  result           TestResult @default(not_run)
-  notes            String?
-  durationMinutes  Int?
-  environment      String?
-  executedById     String?
-  automated        Boolean    @default(false)
-  automationJobId  String?
-  executedAt       DateTime?
-  createdAt        DateTime   @default(now())
+  id              String       @id @default(cuid())
+  runId           String
+  testCaseId      String
+  attempt         Int          @default(1)
+  status          ResultStatus @default(not_run)
+  notes           String?
+  durationMinutes Int?
+  environment     String?
+  executedById    String?
+  automated       Boolean      @default(false)
+  automationJobId String?
+  executedAt      DateTime?
+  createdAt       DateTime     @default(now())
 
-  run      TestRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
-  testCase TestCase          @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
-  executedBy User?            @relation(fields: [executedById], references: [id])
-  defects   DefectTestResult[]
+  run        TestRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
+  testCase   TestCase           @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  executedBy User?              @relation(fields: [executedById], references: [id])
+  defects    DefectTestResult[]
 
   @@unique([runId, testCaseId, attempt])
   @@index([testCaseId])
-  @@index([runId, result])
+  @@index([runId, status])
   @@index([runId, executedAt])
   @@map("test_results")
 }
@@ -499,13 +500,13 @@ model Defect {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  project   Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignee User?                 @relation("DefectAssignee", fields: [assigneeId], references: [id])
-  reporter User                  @relation("DefectReporter", fields: [reporterId], references: [id])
-  comments DefectComment[]
-  history  DefectHistory[]
-  links    DefectTestResult[]
-  retestRun TestRun?            @relation("DefectRetestRun", fields: [retestRunId], references: [id])
+  project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee  User?              @relation("DefectAssignee", fields: [assigneeId], references: [id])
+  reporter  User               @relation("DefectReporter", fields: [reporterId], references: [id])
+  comments  DefectComment[]
+  history   DefectHistory[]
+  links     DefectTestResult[]
+  retestRun TestRun?           @relation("DefectRetestRun", fields: [retestRunId], references: [id])
 
   @@unique([projectId, ref])
   @@index([projectId, status])
@@ -523,22 +524,22 @@ model DefectComment {
   createdAt DateTime @default(now())
 
   defect Defect @relation(fields: [defectId], references: [id], onDelete: Cascade)
-  author User    @relation(fields: [authorId], references: [id])
+  author User   @relation(fields: [authorId], references: [id])
 
   @@index([defectId, createdAt])
   @@map("defect_comments")
 }
 
 model DefectHistory {
-  id         String       @id @default(cuid())
-  defectId   String
-  fromStatus DefectStatus?
-  toStatus   DefectStatus
-  note       String?
+  id          String        @id @default(cuid())
+  defectId    String
+  fromStatus  DefectStatus?
+  toStatus    DefectStatus
+  note        String?
   changedById String
-  createdAt  DateTime     @default(now())
+  createdAt   DateTime      @default(now())
 
-  defect   Defect @relation(fields: [defectId], references: [id], onDelete: Cascade)
+  defect    Defect @relation(fields: [defectId], references: [id], onDelete: Cascade)
   changedBy User   @relation(fields: [changedById], references: [id])
 
   @@index([defectId, createdAt])
@@ -546,11 +547,11 @@ model DefectHistory {
 }
 
 model DefectTestResult {
-  id        String @id @default(cuid())
-  defectId  String
-  resultId  String
+  id       String @id @default(cuid())
+  defectId String
+  resultId String
 
-  defect  Defect     @relation(fields: [defectId], references: [id], onDelete: Cascade)
+  defect Defect     @relation(fields: [defectId], references: [id], onDelete: Cascade)
   result TestResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
 
   @@unique([defectId, resultId])
@@ -579,22 +580,22 @@ model ModuleDependency {
 }
 
 model RegressionPlan {
-  id              String   @id @default(cuid())
-  projectId       String
-  name            String
-  baselineRunId   String?
-  changeSetNote   String?
+  id                    String   @id @default(cuid())
+  projectId             String
+  name                  String
+  baselineRunId         String?
+  changeSetNote         String?
   changedRequirementIds Json
-  recommendations Json
-  selectedTestCaseIds    Json
-  status          String   @default("draft")
-  createdById     String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  recommendations       Json
+  selectedTestCaseIds   Json
+  status                String   @default("draft")
+  createdById           String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy User   @relation(fields: [createdById], references: [id])
-  runs    TestRun[]
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdById], references: [id])
+  runs      TestRun[]
 
   @@index([projectId, createdAt])
   @@map("regression_plans")
@@ -611,7 +612,7 @@ enum AiReviewStatus {
 }
 
 model AiGeneration {
-  id            String          @id @default(cuid())
+  id            String         @id @default(cuid())
   projectId     String?
   userId        String
   requirementId String?
@@ -620,13 +621,13 @@ model AiGeneration {
   inputSummary  String
   promptVersion String
   suggestions   Json
-  approvedCount Int             @default(0)
-  rejectedCount Int             @default(0)
-  status        AiReviewStatus  @default(pending)
+  approvedCount Int            @default(0)
+  rejectedCount Int            @default(0)
+  status        AiReviewStatus @default(pending)
   durationMs    Int?
-  createdAt     DateTime        @default(now())
+  createdAt     DateTime       @default(now())
 
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   requirement Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
   testCases   TestCase[]
 
@@ -655,27 +656,27 @@ enum ArtifactType {
 }
 
 model AutomationJob {
-  id          String              @id @default(cuid())
-  projectId   String
-  name        String
-  suite       String
-  framework   String              @default("playwright")
-  targetUrl   String
+  id           String              @id @default(cuid())
+  projectId    String
+  name         String
+  suite        String
+  framework    String              @default("playwright")
+  targetUrl    String
   allowedHosts Json
-  trigger     String              @default("manual")
-  schedule    String?
-  enabled     Boolean             @default(true)
-  status      AutomationJobStatus @default(queued)
-  timeoutMs   Int                 @default(120000)
-  createdById String
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  trigger      String              @default("manual")
+  schedule     String?
+  enabled      Boolean             @default(true)
+  status       AutomationJobStatus @default(queued)
+  timeoutMs    Int                 @default(120000)
+  createdById  String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
-  project   Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy User                  @relation(fields: [createdById], references: [id])
+  project       Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy     User                    @relation(fields: [createdById], references: [id])
   testCaseLinks AutomationJobTestCase[]
-  runs      AutomationJobRun[]
-  artifacts AutomationArtifact[]
+  runs          AutomationJobRun[]
+  artifacts     AutomationArtifact[]
 
   @@index([projectId, status])
   @@map("automation_jobs")
@@ -687,7 +688,7 @@ model AutomationJobTestCase {
   testCaseId String
 
   job      AutomationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  testCase TestCase     @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  testCase TestCase      @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
 
   @@unique([jobId, testCaseId])
   @@index([testCaseId])
@@ -695,21 +696,21 @@ model AutomationJobTestCase {
 }
 
 model AutomationJobRun {
-  id          String              @id @default(cuid())
-  jobId       String
-  status      AutomationJobStatus @default(queued)
-  trigger     String              @default("manual")
-  total       Int                 @default(0)
-  passed      Int                 @default(0)
-  failed      Int                 @default(0)
-  skipped     Int                 @default(0)
-  durationMs  Int?
-  error       String?
-  commitSha   String?
-  branch      String?
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  createdAt   DateTime            @default(now())
+  id         String              @id @default(cuid())
+  jobId      String
+  status     AutomationJobStatus @default(queued)
+  trigger    String              @default("manual")
+  total      Int                 @default(0)
+  passed     Int                 @default(0)
+  failed     Int                 @default(0)
+  skipped    Int                 @default(0)
+  durationMs Int?
+  error      String?
+  commitSha  String?
+  branch     String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime            @default(now())
 
   job AutomationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
@@ -718,15 +719,15 @@ model AutomationJobRun {
 }
 
 model AutomationArtifact {
-  id         String       @id @default(cuid())
-  jobId      String
-  runId      String?
-  type       ArtifactType
-  fileName   String
-  storageKey String
+  id          String       @id @default(cuid())
+  jobId       String
+  runId       String?
+  type        ArtifactType
+  fileName    String
+  storageKey  String
   contentType String
-  sizeBytes  Int
-  createdAt  DateTime     @default(now())
+  sizeBytes   Int
+  createdAt   DateTime     @default(now())
 
   job AutomationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 

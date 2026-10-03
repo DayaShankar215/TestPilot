@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { prisma } from '../../config/database.js'
 import { env } from '../../config/env.js'
 import { ApiError } from '../../utils/apiError.js'
@@ -10,28 +10,28 @@ import { revokeAllUserSessions } from '../../services/sessions.js'
 const MAX_OWNERS = 5
 
 export async function getPreferences(auth) {
-  const preferences = await prisma.preference.findUnique({ where: { userId: auth.user.id } })
+  const preferences = await prisma.userPreference.findUnique({ where: { userId: auth.user.id } })
   return preferences ?? { userId: auth.user.id, theme: 'system' }
 }
 
 export async function updatePreferences(auth, values) {
-  return prisma.preference.upsert({
+  return prisma.userPreference.upsert({
     where: { userId: auth.user.id },
     create: { userId: auth.user.id, ...values },
     update: values,
   })
 }
 
-export async function updateProfile(auth, { name, jobTitle, avatarUrl }) {
+export async function updateProfile(auth, { name, title, avatarUrl, timezone }) {
   return prisma.user.update({
     where: { id: auth.user.id },
-    data: { name, jobTitle, avatarUrl },
+    data: { name, title, avatarUrl, timezone },
     select: PUBLIC_USER_SELECT,
   })
 }
 
 /** Directory search inside workspaces the caller belongs to. */
-export async function searchUsers(auth, { search, workspaceId, page, pageSize, skip, take }) {
+export async function searchUsers(auth, { search, workspaceId, skip, take }) {
   const scopedWorkspaceIds = workspaceId ? [workspaceId] : auth.workspaceIds
   if (workspaceId && !auth.workspaceIds.includes(workspaceId)) {
     throw ApiError.notFound('Workspace not found.')
@@ -53,7 +53,7 @@ export async function searchUsers(auth, { search, workspaceId, page, pageSize, s
   const [items, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      select: { ...PUBLIC_USER_SELECT, jobTitle: true },
+      select: { ...PUBLIC_USER_SELECT, title: true },
       orderBy: { name: 'asc' },
       skip,
       take,
@@ -86,7 +86,7 @@ export async function listWorkspaceMembers(auth, workspaceId, { search, skip, ta
         id: true,
         role: true,
         createdAt: true,
-        user: { select: { id: true, name: true, email: true, avatarUrl: true, jobTitle: true } },
+        user: { select: { id: true, name: true, email: true, avatarUrl: true, title: true } },
       },
       orderBy: { createdAt: 'asc' },
       skip,
@@ -121,7 +121,7 @@ export async function addWorkspaceMember(auth, workspaceId, { email, role }) {
       },
       select: PUBLIC_USER_SELECT,
     })
-    await prisma.preference.create({ data: { userId: user.id } }).catch(() => {})
+    await prisma.userPreference.create({ data: { userId: user.id } }).catch(() => {})
   }
 
   const membership = await prisma.workspaceMember.upsert({

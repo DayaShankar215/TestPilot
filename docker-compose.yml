@@ -1,0 +1,25 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: testpilot-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: testpilot-root
+      MYSQL_DATABASE: testpilot
+      MYSQL_USER: testpilot
+      MYSQL_PASSWORD: testpilot
+    ports:
+      - '3306:3306'
+    volumes:
+      - testpilot-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-utestpilot', '-ptestpilot']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  testpilot-mysql-data:

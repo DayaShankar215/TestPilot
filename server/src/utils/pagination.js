@@ -61,6 +61,10 @@ export function searchWhere(search, fields) {
   }
 }
 
+/**
+ * Columns are `{ key, label?, value? }`. `value` is an accessor for nested or
+ * derived fields; otherwise the row is read by `key`.
+ */
 export function toCsv(rows, columns) {
   const escape = (value) => {
     if (value === null || value === undefined) return ''
@@ -68,7 +72,9 @@ export function toCsv(rows, columns) {
     return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
   }
 
+  const cell = (column, row) => (typeof column.value === 'function' ? column.value(row) : row[column.key])
+
   const header = columns.map((column) => escape(column.label ?? column.key)).join(',')
-  const body = rows.map((row) => columns.map((column) => escape(column.value(row))).join(',')).join('\n')
+  const body = rows.map((row) => columns.map((column) => escape(cell(column, row))).join(',')).join('\n')
   return `${header}\n${body}`
 }
