@@ -3,11 +3,6 @@ import './styles/tokens.css'
 import './styles/themes.css'
 import './styles/global.css'
 import './styles/layout.css'
-import { AppProviders } from './app/providers'
-import { AppRouter } from './app/router'
+import App from './App.jsx'
 
-createRoot(document.getElementById('root')).render(
-  <AppProviders>
-    <AppRouter />
-  </AppProviders>,
-)
+createRoot(document.getElementById('root')).render(<App />)
