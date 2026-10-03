@@ -1,10 +1,114 @@
 import axios from 'axios'
-import { readCookie, storage } from './storage'
+import { resolveHandler } from './mock/adapter'
+import { storage } from './storage'
 
-export const CSRF_COOKIE = 'testpilot_csrf'
-export const CSRF_HEADER = 'X-CSRF-Token'
+export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true'
 
-const UNSAFE_METHODS = new Set(['post', 'put', 'patch', 'delete'])
+const mockSession = { user: storage.getUser() }
+
+function stripBasePath(path) {
+  return path.replace(/^\/api\/v\d+/, '') || '/'
+}
+
+const mockAdapter = async (config) => {
+  const method = config.method?.toUpperCase() ?? 'GET'
+  const basePath = config.baseURL ?? ''
+  const fullUrl = `${basePath}${config.url ?? ''}`
+
+  let pathname = fullUrl.split('?')[0]
+  try {
+    pathname = new URL(fullUrl, typeof window === 'undefined' ? 'http://localhost' : window.location.origin).pathname
+  } catch {
+    pathname = fullUrl.split('?')[0]
+  }
+
+  const path = stripBasePath(pathname || '/')
+  const queryFromUrl = fullUrl.includes('?') ? fullUrl.slice(fullUrl.indexOf('?') + 1) : ''
+  const params = {
+    ...Object.fromEntries(new URLSearchParams(queryFromUrl)),
+    ...(config.params ?? {}),
+  }
+
+  let body = config.data
+  if (typeof body === 'string' && body) {
+    try {
+      body = JSON.parse(body)
+    } catch {
+      body = config.data
+    }
+  }
+
+  const match = resolveHandler(method, path)
+
+  const toEnvelope = (value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value) && 'data' in value) return value
+    return { data: value }
+  }
+
+  const respond = (payload) => ({
+    data: toEnvelope(payload.data),
+    status: payload.status ?? 200,
+    statusText: payload.status === 201 ? 'Created' : payload.status === 202 ? 'Accepted' : 'OK',
+    headers: { 'content-type': 'application/json', 'x-testpilot-mock': 'true' },
+    config,
+  })
+
+  await new Promise((resolve) => {
+    setTimeout(resolve, 180 + Math.random() * 260)
+  })
+
+  if (!match) {
+    const error = new Error(`No mock handler for ${method} ${path}`)
+    error.status = 404
+    error.code = 'NOT_FOUND'
+    error.config = config
+    error.isAxiosError = true
+    error.response = {
+      data: { error: { code: 'NOT_FOUND', message: `Mock handler not found: ${method} ${path}` } },
+      status: 404,
+      statusText: 'Not Found',
+      headers: {},
+      config,
+    }
+    throw error
+  }
+
+  try {
+    const result = match.handler({ params: { ...params, ...match.params }, body, state: mockSession, config })
+    if (result.delay) await new Promise((resolve) => setTimeout(resolve, result.delay))
+    if (method === 'POST' && /login|register/.test(path) && result.data?.user) {
+      mockSession.user = result.data.user
+    }
+    if (method === 'GET' && path === '/auth/me' && result.data) {
+      mockSession.user = result.data
+    }
+    if (method === 'PATCH' && path === '/auth/me' && result.data) {
+      mockSession.user = result.data
+    }
+    return respond(result)
+  } catch (thrown) {
+    const status = thrown.status ?? 500
+    const error = new Error(thrown.message)
+    error.status = status
+    error.code = thrown.code ?? 'INTERNAL_ERROR'
+    error.config = config
+    error.isAxiosError = true
+    error.response = {
+      data: {
+        error: {
+          code: error.code,
+          message: thrown.message,
+          fieldErrors: thrown.fieldErrors ?? undefined,
+        },
+      },
+      status,
+      statusText: String(status),
+      headers: {},
+      config,
+    }
+    throw error
+  }
+}
 
 export class ApiError extends Error {
   constructor({ message, status, code, fieldErrors, details }) {
@@ -42,24 +146,16 @@ export class ApiError extends Error {
 }
 
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000/api/v1',
-  timeout: 30000,
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api/v1',
+  timeout: 20000,
   headers: { 'Content-Type': 'application/json' },
-  // Required for the HttpOnly session cookie to be sent and stored.
   withCredentials: true,
+  ...(USE_MOCK_API ? { adapter: mockAdapter } : {}),
 })
 
-/**
- * Double-submit CSRF: every state-changing request echoes the readable
- * `testpilot_csrf` cookie in a header. Safe endpoints (login, register,
- * password reset) are exempt server-side, so the header is simply omitted when
- * no CSRF cookie exists yet.
- */
 apiClient.interceptors.request.use((config) => {
-  if (UNSAFE_METHODS.has((config.method ?? 'get').toLowerCase())) {
-    const token = readCookie(CSRF_COOKIE)
-    if (token) config.headers[CSRF_HEADER] = token
-  }
+  const token = storage.getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
@@ -77,17 +173,16 @@ apiClient.interceptors.response.use(
     }
 
     const status = error.response?.status ?? 0
-    const payload = error.response?.data ?? {}
-    const detail = payload.error ?? {}
+    const payload = error.response?.data?.error ?? error.response?.data ?? {}
 
     const message =
-      detail.message ??
-      payload.message ??
+      payload?.message ??
       error.response?.statusText ??
       (status === 0 ? 'Unable to reach the TestPilot API. Check your connection and try again.' : 'Something went wrong.')
 
     if (status === 401) {
       storage.clearSession()
+      mockSession.user = null
       sessionExpiryHandler?.()
     }
 
@@ -95,28 +190,15 @@ apiClient.interceptors.response.use(
       new ApiError({
         message,
         status,
-        code: detail.code ?? error.code,
-        fieldErrors: detail.fieldErrors ?? payload.errors ?? null,
-        details: detail.details ?? null,
+        code: payload?.code ?? error.code,
+        fieldErrors: payload?.fieldErrors ?? null,
+        details: payload?.details ?? null,
       }),
     )
   },
 )
 
-export function unwrap(response) {
-  return response.data?.data ?? null
-}
-
-export function unwrapList(response) {
-  const body = response.data ?? {}
-  const data = body.data ?? []
-  return {
-    items: Array.isArray(data) ? data : (data.items ?? []),
-    meta: body.meta ?? data?.meta ?? null,
-  }
-}
-
-export function buildListParams({ page, pageSize, search, sortBy, sortDir, filters, ...rest } = {}) {
+export function buildListParams({ page, pageSize, search, sortBy, sortDir, filters, ...rest }) {
   return {
     page,
     pageSize,
@@ -136,3 +218,5 @@ export function queryString(params = {}) {
   })
   return search.toString()
 }
+
+export const mockSessionState = mockSession
