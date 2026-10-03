@@ -61,7 +61,7 @@ export async function findProjectAccess(auth, projectId, options) {
 }
 
 function rankOf(role) {
-  return WORKSPACE_ROLE_RANK[role] ?? PROJECT_ROLE_RANK[role] ?? 0
+  return rankForRole(role)
 }
 
 function highestRole(workspaceRole, projectRole) {
@@ -78,10 +78,4 @@ export async function resolveScopedRecord(auth, { model, id, minimumRole = 'view
 
   const access = await resolveProjectAccess(auth, record.projectId, { minimumRole })
   return { record, access }
-}
-
-export function assertCanManageDefects(role) {
-  if (rankOf(role) < rankOf('qa_lead')) {
-    throw ApiError.forbidden('Only QA leads and admins can change or close defects.')
-  }
 }
