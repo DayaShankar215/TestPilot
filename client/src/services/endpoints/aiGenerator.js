@@ -1,10 +1,16 @@
-import { apiClient } from '../apiClient'
+import { apiClient, unwrap } from '../apiClient'
 
 export const aiGeneratorApi = {
-  async generate(projectId, payload) {
-    const { data } = await apiClient.post(`/projects/${projectId}/ai-test-cases/generate`, payload, {
-      timeout: 60000,
-    })
-    return data.data
+  /**
+   * Spec route is `/ai/test-case-generation` and accepts a requirement
+   * reference, a requirement id, or free text.
+   */
+  async generate(payload, projectId) {
+    const response = await apiClient.post(
+      '/ai/test-case-generation',
+      projectId ? { ...payload, projectId } : payload,
+      { timeout: 120000 },
+    )
+    return unwrap(response)
   },
 }

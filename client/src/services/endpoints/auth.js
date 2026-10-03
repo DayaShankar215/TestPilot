@@ -1,54 +1,51 @@
-import { apiClient } from '../apiClient'
-import { storage } from '../storage'
+import { apiClient, unwrap } from '../apiClient'
 
 export const authApi = {
+  /** The session arrives as an HttpOnly cookie; only the user is returned. */
   async login(credentials) {
-    const { data } = await apiClient.post('/auth/login', credentials)
-    storage.setToken(data.data.token)
-    storage.setUser(data.data.user)
-    return data.data
+    const response = await apiClient.post('/auth/login', credentials)
+    return unwrap(response)
   },
 
   async register(payload) {
-    const { data } = await apiClient.post('/auth/register', payload)
-    storage.setToken(data.data.token)
-    storage.setUser(data.data.user)
-    return data.data
-  },
-
-  async requestPasswordReset(email) {
-    const { data } = await apiClient.post('/auth/forgot-password', { email })
-    return data.data
-  },
-
-  async resetPassword(payload) {
-    const { data } = await apiClient.post('/auth/reset-password', payload)
-    return data.data
-  },
-
-  async changePassword(payload) {
-    const { data } = await apiClient.post('/auth/change-password', payload)
-    return data.data
-  },
-
-  async me() {
-    const { data } = await apiClient.get('/auth/me')
-    const user = data.data
-    storage.setUser(user)
-    return user
-  },
-
-  async updateProfile(payload) {
-    const { data } = await apiClient.patch('/auth/me', payload)
-    storage.setUser(data.data)
-    return data.data
+    const response = await apiClient.post('/auth/register', payload)
+    return unwrap(response)
   },
 
   async logout() {
-    try {
-      await apiClient.post('/auth/logout')
-    } finally {
-      storage.clearSession()
-    }
+    const response = await apiClient.post('/auth/logout')
+    return unwrap(response)
+  },
+
+  /** Returns `{ user, preferences, memberships }` for the current session. */
+  async me() {
+    const response = await apiClient.get('/auth/me')
+    return unwrap(response)
+  },
+
+  /** Cheap heartbeat that rotates the cookie only when it nears expiry. */
+  async refresh() {
+    const response = await apiClient.post('/auth/refresh')
+    return unwrap(response)
+  },
+
+  async requestPasswordReset(email) {
+    const response = await apiClient.post('/auth/forgot-password', { email })
+    return unwrap(response)
+  },
+
+  async resetPassword(payload) {
+    const response = await apiClient.post('/auth/reset-password', payload)
+    return unwrap(response)
+  },
+
+  async listSessions() {
+    const response = await apiClient.get('/auth/sessions')
+    return unwrap(response)
+  },
+
+  async revokeSession(sessionId) {
+    const response = await apiClient.delete(`/auth/sessions/${sessionId}`)
+    return unwrap(response)
   },
 }

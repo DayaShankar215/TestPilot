@@ -1,33 +1,46 @@
-import { apiClient } from '../apiClient'
+import { apiClient, unwrap, unwrapList } from '../apiClient'
 
 export const testCasesApi = {
   async list(projectId, params = {}) {
-    const { data } = await apiClient.get(`/projects/${projectId}/test-cases`, { params })
-    return { items: data.data, meta: data.meta }
+    const response = await apiClient.get(`/projects/${projectId}/test-cases`, { params })
+    return unwrapList(response)
   },
 
-  async get(testCaseId) {
-    const { data } = await apiClient.get(`/test-cases/${testCaseId}`)
-    return data.data
+  async get(projectId, testCaseId) {
+    const response = await apiClient.get(`/projects/${projectId}/test-cases/${testCaseId}`)
+    return unwrap(response)
   },
 
   async create(projectId, payload) {
-    const { data } = await apiClient.post(`/projects/${projectId}/test-cases`, payload)
-    return data.data
+    const response = await apiClient.post(`/projects/${projectId}/test-cases`, payload)
+    return unwrap(response)
   },
 
-  async update(testCaseId, payload) {
-    const { data } = await apiClient.patch(`/test-cases/${testCaseId}`, payload)
-    return data.data
+  async update(projectId, testCaseId, payload) {
+    const response = await apiClient.patch(`/projects/${projectId}/test-cases/${testCaseId}`, payload)
+    return unwrap(response)
   },
 
-  async deprecate(testCaseId) {
-    const { data } = await apiClient.delete(`/test-cases/${testCaseId}`)
-    return data.data
+  async deprecate(projectId, testCaseId) {
+    const response = await apiClient.delete(`/projects/${projectId}/test-cases/${testCaseId}`)
+    return unwrap(response)
   },
 
-  async duplicate(testCaseId) {
-    const { data } = await apiClient.post(`/test-cases/${testCaseId}/duplicate`)
-    return data.data
+  async clone(projectId, testCaseId, payload = {}) {
+    const response = await apiClient.post(`/projects/${projectId}/test-cases/${testCaseId}/clone`, payload)
+    return unwrap(response)
+  },
+
+  /** Replaces the requirements linked to a test case. */
+  async setRequirements(projectId, testCaseId, requirementIds) {
+    const response = await apiClient.put(`/projects/${projectId}/test-cases/${testCaseId}/requirements`, {
+      requirementIds,
+    })
+    return unwrap(response)
+  },
+
+  async history(projectId, testCaseId) {
+    const response = await apiClient.get(`/projects/${projectId}/test-cases/${testCaseId}/history`)
+    return unwrapList(response)
   },
 }

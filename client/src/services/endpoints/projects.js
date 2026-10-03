@@ -1,38 +1,87 @@
-import { apiClient } from '../apiClient'
+import { apiClient, unwrap, unwrapList } from '../apiClient'
+
+export const workspacesApi = {
+  async list() {
+    const response = await apiClient.get('/workspaces')
+    return unwrapList(response)
+  },
+
+  /** Spec alias for the caller's primary workspace. */
+  async current() {
+    const response = await apiClient.get('/workspaces/current')
+    return unwrap(response)
+  },
+
+  async updateCurrent(payload) {
+    const response = await apiClient.patch('/workspaces/current', payload)
+    return unwrap(response)
+  },
+
+  async members() {
+    const response = await apiClient.get('/workspaces/current/members')
+    return unwrapList(response)
+  },
+
+  async addMember(payload) {
+    const response = await apiClient.post('/workspaces/current/members', payload)
+    return unwrap(response)
+  },
+
+  async updateMember(memberId, payload) {
+    const response = await apiClient.patch(`/workspaces/current/members/${memberId}`, payload)
+    return unwrap(response)
+  },
+
+  async removeMember(memberId) {
+    const response = await apiClient.delete(`/workspaces/current/members/${memberId}`)
+    return unwrap(response)
+  },
+}
 
 export const projectsApi = {
   async list(params = {}) {
-    const { data } = await apiClient.get('/projects', { params })
-    return { items: data.data, meta: data.meta }
+    const response = await apiClient.get('/projects', { params })
+    return unwrapList(response)
   },
 
   async get(projectId) {
-    const { data } = await apiClient.get(`/projects/${projectId}`)
-    return data.data
+    const response = await apiClient.get(`/projects/${projectId}`)
+    return unwrap(response)
   },
 
   async create(payload) {
-    const { data } = await apiClient.post('/projects', payload)
-    return data.data
+    const response = await apiClient.post('/projects', payload)
+    return unwrap(response)
   },
 
   async update(projectId, payload) {
-    const { data } = await apiClient.patch(`/projects/${projectId}`, payload)
-    return data.data
+    const response = await apiClient.patch(`/projects/${projectId}`, payload)
+    return unwrap(response)
   },
 
+  /** Spec defines DELETE as a soft archive. */
   async archive(projectId) {
-    const { data } = await apiClient.delete(`/projects/${projectId}`)
-    return data.data
+    const response = await apiClient.delete(`/projects/${projectId}`)
+    return unwrap(response)
   },
 
-  async overview(projectId) {
-    const { data } = await apiClient.get(`/projects/${projectId}/overview`)
-    return data.data
+  async members(projectId) {
+    const response = await apiClient.get(`/projects/${projectId}/members`)
+    return unwrapList(response)
   },
 
-  async activity(projectId, limit = 30) {
-    const { data } = await apiClient.get(`/projects/${projectId}/activity`, { params: { limit } })
-    return data.data
+  async addMember(projectId, payload) {
+    const response = await apiClient.post(`/projects/${projectId}/members`, payload)
+    return unwrap(response)
+  },
+
+  async dashboard(projectId) {
+    const response = await apiClient.get(`/projects/${projectId}/dashboard`)
+    return unwrap(response)
+  },
+
+  async activity(projectId, params = {}) {
+    const response = await apiClient.get(`/projects/${projectId}/activity`, { params })
+    return unwrapList(response)
   },
 }

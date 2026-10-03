@@ -24,7 +24,7 @@ const valuesOf = (name) =>
 
 const options = {
   tables: valuesOf('table'),
-  rows: Number.parseInt(args[args.indexOf('--rows') + 1] ?? '25', 10),
+  rows: Number.parseInt(valuesOf('rows')[0] ?? '25', 10),
   schemaOnly: hasFlag('schema'),
   full: hasFlag('full'),
   json: hasFlag('json'),
@@ -71,19 +71,18 @@ function renderTable(columns, rows) {
   return output.join('\n')
 }
 
-// Counting goes through information_schema so no identifier interpolation is
-// needed; `$queryRaw` treats `${table}` as a bound value, never as an identifier.
-const countRows = (table) =>
-  prisma.$queryRaw`
-    SELECT COUNT(*) AS total
-    FROM information_schema.TABLES
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ${table}
-  `
+/**
+ * Identifiers cannot be bound as query parameters, so they are interpolated and
+ * escaped by hand. Every table name is checked against the Prisma DMMF list in
+ * `main()` before it can reach these queries.
+ */
+const quoteIdentifier = (table) => `\`${table.replaceAll('`', '')}\``
 
-// The identifier is interpolated, so it must be escaped by hand. Every value is
-// checked against the Prisma DMMF list above before it can reach this query.
+const countRows = (table) =>
+  prisma.$queryRawUnsafe(`SELECT COUNT(*) AS total FROM ${quoteIdentifier(table)}`)
+
 const selectRows = (table, limit) =>
-  prisma.$queryRawUnsafe(`SELECT * FROM \`${table.replaceAll('`', '')}\`${limit ? ` LIMIT ${limit}` : ''}`)
+  prisma.$queryRawUnsafe(`SELECT * FROM ${quoteIdentifier(table)}${limit ? ` LIMIT ${limit}` : ''}`)
 
 async function columnNamesFor(table) {
   const columns = await prisma.$queryRaw`

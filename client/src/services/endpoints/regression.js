@@ -1,18 +1,19 @@
-import { apiClient } from '../apiClient'
+import { apiClient, unwrap, unwrapList } from '../apiClient'
 
 export const regressionApi = {
-  async changeSets(projectId) {
-    const { data } = await apiClient.get(`/projects/${projectId}/regression/change-sets`)
-    return data.data
+  /** Builds a regression plan from a base run plus selected requirements. */
+  async createPlan(projectId, payload) {
+    const response = await apiClient.post(`/projects/${projectId}/regression/plan`, payload)
+    return unwrap(response)
   },
 
-  async changeSet(projectId, changeSetId) {
-    const { data } = await apiClient.get(`/projects/${projectId}/regression/change-sets/${changeSetId}`)
-    return data.data
+  async plans(projectId, params = {}) {
+    const response = await apiClient.get(`/projects/${projectId}/regression/plans`, { params })
+    return unwrapList(response)
   },
 
-  async saveSuite(projectId, payload) {
-    const { data } = await apiClient.post(`/projects/${projectId}/regression/suites`, payload)
-    return data.data
+  async plan(projectId, planId) {
+    const response = await apiClient.get(`/projects/${projectId}/regression/plans/${planId}`)
+    return unwrap(response)
   },
 }

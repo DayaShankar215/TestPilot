@@ -1,30 +1,24 @@
-import { apiClient } from '../apiClient'
-
-export const dashboardApi = {
-  async summary(params = {}) {
-    const { data } = await apiClient.get('/dashboard/summary', { params })
-    return data.data
-  },
-}
+import { apiClient, unwrap } from '../apiClient'
 
 export const reportsApi = {
-  async summary(projectId, params = {}) {
-    const { data } = await apiClient.get(`/projects/${projectId}/reports/summary`, { params })
-    return data.data
+  async execution(projectId, params = {}) {
+    const response = await apiClient.get(`/projects/${projectId}/reports/execution`, { params })
+    return unwrap(response)
   },
 
-  async coverage(projectId) {
-    const { data } = await apiClient.get(`/projects/${projectId}/reports/coverage`)
-    return data.data
+  async coverage(projectId, params = {}) {
+    const response = await apiClient.get(`/projects/${projectId}/reports/coverage`, { params })
+    return unwrap(response)
   },
 
-  async defectAging(projectId) {
-    const { data } = await apiClient.get(`/projects/${projectId}/reports/defect-aging`)
-    return data.data
+  /** Defect analytics (aging, by severity, by module). */
+  async defects(projectId, params = {}) {
+    const response = await apiClient.get(`/projects/${projectId}/reports/defects`, { params })
+    return unwrap(response)
   },
 
   async releaseReadiness(projectId) {
-    const { data } = await apiClient.get(`/projects/${projectId}/reports/release-readiness`)
-    return data.data
+    const response = await apiClient.get(`/projects/${projectId}/reports/release-readiness`)
+    return unwrap(response)
   },
 }

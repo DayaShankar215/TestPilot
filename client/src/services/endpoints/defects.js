@@ -1,38 +1,44 @@
-import { apiClient } from '../apiClient'
+import { apiClient, unwrap, unwrapList } from '../apiClient'
 
 export const defectsApi = {
   async list(projectId, params = {}) {
-    const { data } = await apiClient.get(`/projects/${projectId}/defects`, { params })
-    return { items: data.data, meta: data.meta }
+    const response = await apiClient.get(`/projects/${projectId}/defects`, { params })
+    return unwrapList(response)
   },
 
-  async get(defectId) {
-    const { data } = await apiClient.get(`/defects/${defectId}`)
-    return data.data
+  async get(projectId, defectId) {
+    const response = await apiClient.get(`/projects/${projectId}/defects/${defectId}`)
+    return unwrap(response)
   },
 
   async create(projectId, payload) {
-    const { data } = await apiClient.post(`/projects/${projectId}/defects`, payload)
-    return data.data
+    const response = await apiClient.post(`/projects/${projectId}/defects`, payload)
+    return unwrap(response)
   },
 
-  async update(defectId, payload) {
-    const { data } = await apiClient.patch(`/defects/${defectId}`, payload)
-    return data.data
+  async update(projectId, defectId, payload) {
+    const response = await apiClient.patch(`/projects/${projectId}/defects/${defectId}`, payload)
+    return unwrap(response)
   },
 
-  async addComment(defectId, body) {
-    const { data } = await apiClient.post(`/defects/${defectId}/comments`, { body })
-    return data.data
+  async addComment(projectId, defectId, body) {
+    const response = await apiClient.post(`/projects/${projectId}/defects/${defectId}/comments`, { body })
+    return unwrap(response)
   },
 
-  async transition(defectId, status) {
-    const { data } = await apiClient.patch(`/defects/${defectId}`, { status })
-    return data.data
+  /** Dedicated reopen action; the spec does not use a status PATCH for this. */
+  async reopen(projectId, defectId, payload = {}) {
+    const response = await apiClient.post(`/projects/${projectId}/defects/${defectId}/reopen`, payload)
+    return unwrap(response)
   },
 
-  async retest(defectId) {
-    const { data } = await apiClient.post(`/defects/${defectId}/retest`)
-    return data.data
+  async retest(projectId, defectId) {
+    const response = await apiClient.post(`/projects/${projectId}/defects/${defectId}/retest`)
+    return unwrap(response)
+  },
+
+  async history(projectId, defectId) {
+    const response = await apiClient.get(`/projects/${projectId}/defects/${defectId}/history`)
+    return unwrapList(response)
   },
 }
