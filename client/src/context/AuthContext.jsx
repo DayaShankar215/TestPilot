@@ -1,17 +1,23 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { authApi } from '../services/endpoints/auth'
+import { usersApi } from '../services/endpoints/users'
 import { onSessionExpired } from '../services/apiClient'
 import { storage } from '../services/storage'
 
 const AuthContext = createContext(null)
 
+/**
+ * The session lives in an HttpOnly cookie, so the only question this provider
+ * answers is "does the server still consider me signed in?". On mount it always
+ * calls `/auth/me`; there is no token in localStorage to inspect.
+ */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => storage.getUser())
-  const [status, setStatus] = useState(() => (storage.getToken() ? 'loading' : 'anonymous'))
+  const [status, setStatus] = useState('loading')
   const [sessionMessage, setSessionMessage] = useState(null)
 
-  const applySession = useCallback((session) => {
-    setUser(session.user)
+  const applySession = useCallback((payload) => {
+    setUser(payload?.user ?? payload ?? null)
     setStatus('authenticated')
     setSessionMessage(null)
   }, [])
@@ -29,18 +35,22 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false
-    if (!storage.getToken()) {
-      setStatus('anonymous')
-      return undefined
-    }
 
     authApi
       .me()
-      .then((profile) => {
-        if (!cancelled) applySession({ user: profile })
+      .then((payload) => {
+        if (!cancelled) applySession(payload)
       })
-      .catch(() => {
-        if (!cancelled) clearSession()
+      .catch((error) => {
+        if (cancelled) return
+        // A network failure must not look like a logout; keep the cached user
+        // and surface the problem instead.
+        if (error?.isNetworkError) {
+          setStatus(storage.getUser() ? 'authenticated' : 'anonymous')
+          setSessionMessage('You appear to be offline. Some actions may fail.')
+          return
+        }
+        clearSession()
       })
 
     return () => {
@@ -52,7 +62,9 @@ export function AuthProvider({ children }) {
     async (credentials) => {
       const session = await authApi.login(credentials)
       applySession(session)
-      return session.user
+      const profile = await authApi.me()
+      applySession(profile)
+      return profile.user
     },
     [applySession],
   )
@@ -61,14 +73,19 @@ export function AuthProvider({ children }) {
     async (payload) => {
       const session = await authApi.register(payload)
       applySession(session)
-      return session.user
+      const profile = await authApi.me()
+      applySession(profile)
+      return profile.user
     },
     [applySession],
   )
 
   const logout = useCallback(async () => {
-    await authApi.logout()
-    clearSession()
+    try {
+      await authApi.logout()
+    } finally {
+      clearSession()
+    }
   }, [clearSession])
 
   const value = useMemo(
@@ -83,19 +100,19 @@ export function AuthProvider({ children }) {
       logout,
       refresh: async () => {
         const profile = await authApi.me()
-        setUser(profile)
+        applySession(profile)
         return profile
       },
-      updateUser: (patch) => {
-        setUser((current) => {
-          const next = { ...current, ...patch }
-          storage.setUser(next)
-          return next
-        })
+      updateUser: async (patch) => {
+        const response = await usersApi.updateProfile(patch)
+        const next = { ...user, ...patch, ...(response?.user ?? {}) }
+        setUser(next)
+        storage.setUser(next)
+        return next
       },
       clearSession,
     }),
-    [user, status, sessionMessage, login, register, logout, clearSession],
+    [user, status, sessionMessage, login, register, logout, clearSession, applySession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
