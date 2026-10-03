@@ -422,6 +422,7 @@ model TestRun {
   createdBy User           @relation(fields: [createdById], references: [id])
   plan      RegressionPlan? @relation(fields: [planId], references: [id])
   results   TestResult[]
+  retestedDefects Defect[]  @relation("DefectRetestRun")
 
   @@index([projectId, status])
   @@index([projectId, createdAt])
