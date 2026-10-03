@@ -1,6 +1,6 @@
 import { prisma } from '../config/database.js'
 import { ApiError } from '../utils/apiError.js'
-import { PROJECT_ROLE_RANK, WORKSPACE_ROLE_RANK, workspaceRoleIn } from '../middleware/authorize.js'
+import { rankForRole, workspaceRoleIn } from '../middleware/authorize.js'
 
 /**
  * Single place that answers "may this user touch this project?".

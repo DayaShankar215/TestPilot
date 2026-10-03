@@ -1,6 +1,7 @@
 import { prisma } from '../config/database.js'
 import { env } from '../config/env.js'
 import { ApiError } from '../utils/apiError.js'
+import { sha256 } from '../utils/ids.js'
 
 const SESSION_TOUCH_INTERVAL_MS = 60_000
 
@@ -20,7 +21,6 @@ export async function authenticate(req, _res, next) {
     return
   }
 
-  const { sha256 } = await import('../utils/ids.js')
   const session = await prisma.session.findUnique({
     where: { token: sha256(token) },
     include: {

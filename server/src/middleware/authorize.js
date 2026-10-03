@@ -16,10 +16,12 @@ export const PROJECT_ROLE_RANK = {
   viewer: 1,
 }
 
-const WRITE_ACTIONS = ['create', 'update', 'delete', 'execute', 'transition', 'approve']
-
 function rankOf(table, role) {
   return table[role] ?? 0
+}
+
+export function rankForRole(role) {
+  return rankOf(WORKSPACE_ROLE_RANK, role) || rankOf(PROJECT_ROLE_RANK, role)
 }
 
 export function hasWorkspaceRole(auth, workspaceId, minimumRole) {
@@ -79,14 +81,4 @@ export function requireCapability(capability) {
 
     next()
   }
-}
-
-/**
- * Marks a route as a write so service helpers can require the higher role.
- * `authorize.write = 'qa_lead'` inside a route definition.
- */
-export function writeGuard(req, _res, next) {
-  const action = WRITE_ACTIONS.includes(req.body?.__action) ? req.body.__action : 'write'
-  req.requiredAction = action
-  next()
 }
