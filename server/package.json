@@ -19,6 +19,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:validate": "prisma validate",
+    "db:dump": "node scripts/dumpDatabase.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run lint && npm run test"
