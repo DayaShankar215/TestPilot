@@ -4,31 +4,49 @@ import { storage } from './storage'
 
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true'
 
-const mockSession = { user: null }
+const mockSession = { user: storage.getUser() }
 
-function buildQuery(params = {}) {
-  const search = new URLSearchParams()
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === '') return
-    search.append(key, String(value))
-  })
-  return search.toString()
+function stripBasePath(path) {
+  return path.replace(/^\/api\/v\d+/, '') || '/'
 }
 
 const mockAdapter = async (config) => {
   const method = config.method?.toUpperCase() ?? 'GET'
   const basePath = config.baseURL ?? ''
   const fullUrl = `${basePath}${config.url ?? ''}`
-  const [path, queryString] = fullUrl.split('?')
-  const params = Object.fromEntries(new URLSearchParams(queryString ?? ''))
-  const body =
-    typeof config.data === 'string' && config.data
-      ? JSON.parse(config.data)
-      : (config.data ?? undefined)
+
+  let pathname = fullUrl.split('?')[0]
+  try {
+    pathname = new URL(fullUrl, typeof window === 'undefined' ? 'http://localhost' : window.location.origin).pathname
+  } catch {
+    pathname = fullUrl.split('?')[0]
+  }
+
+  const path = stripBasePath(pathname || '/')
+  const queryFromUrl = fullUrl.includes('?') ? fullUrl.slice(fullUrl.indexOf('?') + 1) : ''
+  const params = {
+    ...Object.fromEntries(new URLSearchParams(queryFromUrl)),
+    ...(config.params ?? {}),
+  }
+
+  let body = config.data
+  if (typeof body === 'string' && body) {
+    try {
+      body = JSON.parse(body)
+    } catch {
+      body = config.data
+    }
+  }
 
   const match = resolveHandler(method, path)
+
+  const toEnvelope = (value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value) && 'data' in value) return value
+    return { data: value }
+  }
+
   const respond = (payload) => ({
-    data: payload.data,
+    data: toEnvelope(payload.data),
     status: payload.status ?? 200,
     statusText: payload.status === 201 ? 'Created' : payload.status === 202 ? 'Accepted' : 'OK',
     headers: { 'content-type': 'application/json', 'x-testpilot-mock': 'true' },
@@ -56,12 +74,15 @@ const mockAdapter = async (config) => {
   }
 
   try {
-    const result = match.handler({ params, body, state: mockSession, config })
+    const result = match.handler({ params: { ...params, ...match.params }, body, state: mockSession, config })
     if (result.delay) await new Promise((resolve) => setTimeout(resolve, result.delay))
     if (method === 'POST' && /login|register/.test(path) && result.data?.user) {
       mockSession.user = result.data.user
     }
     if (method === 'GET' && path === '/auth/me' && result.data) {
+      mockSession.user = result.data
+    }
+    if (method === 'PATCH' && path === '/auth/me' && result.data) {
       mockSession.user = result.data
     }
     return respond(result)
@@ -189,8 +210,13 @@ export function buildListParams({ page, pageSize, search, sortBy, sortDir, filte
   }
 }
 
-export function queryString(params) {
-  return buildQuery(params)
+export function queryString(params = {}) {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    search.append(key, String(value))
+  })
+  return search.toString()
 }
 
 export const mockSessionState = mockSession

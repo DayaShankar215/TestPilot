@@ -3,31 +3,47 @@ import { storage } from '../services/storage'
 
 const ThemeContext = createContext(null)
 
+function prefersDark() {
+  if (typeof window === 'undefined') return false
+  return Boolean(window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+}
+
 function readInitialTheme() {
   const stored = storage.getTheme()
-  if (stored === 'light' || stored === 'dark') return stored
-  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-    return 'dark'
-  }
-  return 'light'
+  if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+  return 'system'
 }
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(readInitialTheme)
+  const [systemDark, setSystemDark] = useState(prefersDark)
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    document.documentElement.style.colorScheme = theme
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined
+    const query = window.matchMedia('(prefers-color-scheme: dark)')
+    const listener = (event) => setSystemDark(event.matches)
+    query.addEventListener('change', listener)
+    return () => query.removeEventListener('change', listener)
+  }, [])
+
+  const resolvedTheme = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', resolvedTheme)
+    document.documentElement.style.colorScheme = resolvedTheme
     storage.setTheme(theme)
-  }, [theme])
+  }, [resolvedTheme, theme])
 
   const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+    setTheme((current) => {
+      const active = current === 'system' ? (prefersDark() ? 'dark' : 'light') : current
+      return active === 'dark' ? 'light' : 'dark'
+    })
   }, [])
 
   const value = useMemo(
-    () => ({ theme, setTheme, toggleTheme, isDark: theme === 'dark' }),
-    [theme, toggleTheme],
+    () => ({ theme, resolvedTheme, setTheme, toggleTheme, isDark: resolvedTheme === 'dark' }),
+    [theme, resolvedTheme, toggleTheme],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

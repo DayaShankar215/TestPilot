@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+.smoke
+.smoke2
+.smoke3
 
 # Editor directories and files
 .vscode/*

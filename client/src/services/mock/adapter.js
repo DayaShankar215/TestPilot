@@ -350,7 +350,10 @@ export const handlers = {
     return { data: user }
   },
 
-  'POST /auth/logout': () => ({ data: { message: 'Signed out.' } }),
+  'POST /auth/logout': ({ state }) => {
+    state.user = null
+    return { data: { message: 'Signed out.' } }
+  },
 
   'GET /users': ({ params }) => {
     const items = db.users.filter((user) => includesText(user.name, params?.search) || includesText(user.email, params?.search))
@@ -1063,10 +1066,21 @@ export const handlers = {
   'POST /automation/jobs/:id/rerun': ({ params }) => {
     const job = db.automationJobs.find((item) => item.id === params.id)
     if (!job) throw notFound('Automation job not found.')
-    if (!job.failures.length) {
+    const failedCount = job.lastRun?.failed ?? 0
+    if (failedCount <= 0) {
       throw validation('This job has no recorded failures to rerun. Start a full run instead.')
     }
-    return { data: { jobId: job.id, queued: true, scope: 'failed_specs' }, status: 202 }
+    const failedTestCaseIds = job.testCaseIds.slice(0, Math.min(failedCount, job.testCaseIds.length))
+    return {
+      data: {
+        jobId: job.id,
+        queued: true,
+        scope: 'failed_specs',
+        testCaseIds: failedTestCaseIds,
+        queuedAt: new Date().toISOString(),
+      },
+      status: 202,
+    }
   },
 
   'PATCH /automation/jobs/:id': ({ params, body }) => {
@@ -1075,6 +1089,8 @@ export const handlers = {
     job.enabled = body?.enabled ?? job.enabled
     job.targetEnvironment = body?.targetEnvironment ?? job.targetEnvironment
     job.trigger = body?.trigger ?? job.trigger
+    job.schedule = body?.schedule ?? job.schedule
+    job.notifyOnFailure = body?.notifyOnFailure ?? job.notifyOnFailure
     return { data: job }
   },
 

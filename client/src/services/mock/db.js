@@ -559,13 +559,12 @@ function buildRegressionChangeSets() {
             viaPaths: direct
               ? [`${requirements.find((req) => testCase.requirementIds.includes(req.id)).ref} → ${testCase.ref}`]
               : [`${requirements[0].ref} → ${requirements[0].module} service → ${testCase.ref}`],
-            lastResult:
-              weightedPick([
-                ['pass', 58],
-                ['fail', 22],
-                ['blocked', 8],
-                ['not_run', 12],
-              ] as [string, number])(),
+            lastResult: weightedPick([
+              ['pass', 58],
+              ['fail', 22],
+              ['blocked', 8],
+              ['not_run', 12],
+            ]),
           }
         },
       ),
@@ -578,7 +577,7 @@ function buildRegressionChangeSets() {
 const REGRESSION_CHANGE_SETS = buildRegressionChangeSets()
 
 const AUTOMATION_JOBS = PROJECTS.filter((project) => project.status === 'active')
-  .flatMap((project, projectIndex) =>
+  .flatMap((project) =>
     ['Smoke Suite', 'API Contract Suite', 'Critical Path Suite'].map((suite, index) => {
       const jobCases = TEST_CASES.filter(
         (item) => item.projectId === project.id && item.automated,
@@ -602,6 +601,8 @@ const AUTOMATION_JOBS = PROJECTS.filter((project) => project.status === 'active'
         framework: pick(['playwright', 'cypress', 'jest', 'selenium']),
         targetEnvironment: pick(['qa', 'staging']),
         trigger: pick(['on-push', 'nightly', 'manual']),
+        schedule: pick(['0 2 * * *', '0 */4 * * *', '15 3 * * 1-5', '0 6 * * 0']),
+        notifyOnFailure: random() < 0.6,
         enabled: random() < 0.85,
         testCaseIds: jobCases.map((item) => item.id),
         lastRun: {
