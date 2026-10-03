@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import { prisma } from '../../config/database.js'
 import { env } from '../../config/env.js'
 import { ApiError } from '../../utils/apiError.js'
+import { randomToken } from '../../utils/ids.js'
 import { hasWorkspaceRole } from '../../middleware/authorize.js'
 import { PUBLIC_USER_SELECT } from '../../services/auth.service.js'
 import { revokeAllUserSessions } from '../../services/sessions.js'
@@ -108,9 +109,10 @@ export async function addWorkspaceMember(auth, workspaceId, { email, role }) {
 
   const existing = await prisma.user.findUnique({ where: { email } })
   let user = existing
+  let temporaryPassword = null
 
   if (!user) {
-    const temporaryPassword = `Tp-${Math.random().toString(36).slice(2, 10)}-Aa1`
+    temporaryPassword = `Tp-${randomToken(6)}-Aa1`
     user = await prisma.user.create({
       data: {
         name: email.split('@')[0],
@@ -129,7 +131,7 @@ export async function addWorkspaceMember(auth, workspaceId, { email, role }) {
     select: { id: true, role: true, createdAt: true, user: { select: { id: true, name: true, email: true } } },
   })
 
-  return { membership, user, isNewUser: !existing }
+  return { membership, user, temporaryPassword, isNewUser: !existing }
 }
 
 export async function updateMemberRole(auth, workspaceId, memberId, role) {
