@@ -93,16 +93,21 @@ async function main() {
     update: {},
   })
 
-  await prisma.requirementVersion.create({
-    data: {
+  await prisma.requirementVersion.upsert({
+    where: { requirementId_version: { requirementId: requirement.id, version: 1 } },
+    create: {
       requirementId: requirement.id,
       version: 1,
       title: requirement.title,
       description: requirement.description,
+      module: requirement.module,
       acceptanceCriteria: requirement.acceptanceCriteria,
-      changeSummary: 'Initial approved baseline',
+      priority: requirement.priority,
+      status: requirement.status,
+      changeNote: 'Initial approved baseline',
       changedById: arun.id,
     },
+    update: {},
   })
 
   const testCase = await prisma.testCase.upsert({
@@ -117,20 +122,14 @@ async function main() {
       priority: 'high',
       status: 'approved',
       createdById: rahul(users).id,
-      steps: {
-        create: [
-          { order: 1, action: 'Open Wallet page', expected: 'Wallet balance is visible' },
-          { order: 2, action: 'Click Add Money', expected: 'Payment methods list appears' },
-          { order: 3, action: 'Pay 500 via UPI', expected: 'Razorpay checkout opens' },
-          { order: 4, action: 'Complete payment', expected: 'Balance increases by 500' },
-        ],
-      },
     },
     update: {},
   })
 
   await prisma.requirementTestCase.upsert({
-    where: { id: 'seed-link-req1-tc1' },
+    where: {
+      requirementId_testCaseId: { requirementId: requirement.id, testCaseId: testCase.id },
+    },
     create: { requirementId: requirement.id, testCaseId: testCase.id },
     update: {},
   })
@@ -191,15 +190,23 @@ async function main() {
   })
 
   await prisma.defectTestResult.upsert({
-    where: { id: 'seed-defect-link-1' },
+    where: { defectId_resultId: { defectId: defect.id, resultId: 'seed-result-1' } },
     create: { defectId: defect.id, resultId: 'seed-result-1' },
     update: {},
   })
 
+  await prisma.defectHistory.deleteMany({ where: { defectId: defect.id } })
   await prisma.defectHistory.create({
-    data: { defectId: defect.id, fromStatus: null, toStatus: 'open', comment: 'Reported from failed TC-1', changedById: sana(users).id },
+    data: {
+      defectId: defect.id,
+      fromStatus: null,
+      toStatus: 'open',
+      note: 'Reported from failed TC-1',
+      changedById: sana(users).id,
+    },
   })
 
+  await prisma.activityLog.deleteMany({ where: { projectId: project.id, action: 'seed' } })
   await prisma.activityLog.create({
     data: {
       projectId: project.id,
@@ -209,6 +216,16 @@ async function main() {
       entityId: project.id,
       summary: 'Seed data created for local development',
     },
+  })
+
+  await prisma.testStep.deleteMany({ where: { testCaseId: testCase.id } })
+  await prisma.testStep.createMany({
+    data: [
+      { testCaseId: testCase.id, order: 1, action: 'Open Wallet page', expected: 'Wallet balance is visible' },
+      { testCaseId: testCase.id, order: 2, action: 'Click Add Money', expected: 'Payment methods list appears' },
+      { testCaseId: testCase.id, order: 3, action: 'Pay 500 via UPI', expected: 'Checkout opens' },
+      { testCaseId: testCase.id, order: 4, action: 'Complete payment', expected: 'Balance increases by 500' },
+    ],
   })
 
   // eslint-disable-next-line no-console
