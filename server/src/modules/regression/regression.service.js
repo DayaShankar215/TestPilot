@@ -17,9 +17,9 @@ const PLAN_INCLUDE = {
 async function buildRecommendations(projectId) {
   const [recentVersions, dependencies] = await Promise.all([
     prisma.requirementVersion.findMany({
-      where: { requirement: { projectId, archivedAt: null }, changedAt: { gte: new Date(Date.now() - 30 * 86400000) } },
+      where: { requirement: { projectId, archivedAt: null }, createdAt: { gte: new Date(Date.now() - 30 * 86400000) } },
       include: { requirement: { select: { id: true, ref: true, title: true, module: true } } },
-      orderBy: { changedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 100,
     }),
     prisma.moduleDependency.findMany({ where: { projectId } }),
