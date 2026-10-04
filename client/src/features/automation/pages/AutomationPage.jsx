@@ -176,7 +176,7 @@ export function AutomationPage() {
             )}
 
             <div className="row-sm">
-              <Button variant="secondary" size="sm" as={Link} to={ROUTES.automationJob(job.id)} icon={Timer}>
+              <Button variant="secondary" size="sm" as={Link} to={ROUTES.automationJob(projectId, job.id)} icon={Timer}>
                 View runs and logs
               </Button>
             </div>
@@ -188,14 +188,14 @@ export function AutomationPage() {
 }
 
 export function AutomationJobPage() {
-  const { jobId } = useParams()
+  const { projectId, jobId } = useParams()
   const toast = useToast()
   const { can } = usePermissions()
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState('runs')
 
-  const fetcher = useMemo(() => () => automationApi.getJob(jobId), [jobId])
-  const { data: job, isLoading, isError, error, refetch, setData } = useApi(fetcher, [jobId])
+  const fetcher = useMemo(() => () => automationApi.job(projectId, jobId), [projectId, jobId])
+  const { data: job, isLoading, isError, error, refetch, setData } = useApi(fetcher, [projectId, jobId])
 
   if (isError) {
     return (
