@@ -7,7 +7,6 @@ import { PermissionsProvider } from '../src/context/PermissionsContext.jsx'
 import { ActiveProjectProvider } from '../src/context/ActiveProjectContext.jsx'
 import { DashboardLayout } from '../src/layouts/DashboardLayout.jsx'
 import { storage } from '../src/services/storage.js'
-import { db } from '../src/services/mock/db.js'
 
 import { LoginPage } from '../src/features/auth/pages/LoginPage.jsx'
 import { RegisterPage } from '../src/features/auth/pages/RegisterPage.jsx'
@@ -36,57 +35,60 @@ const PLACEHOLDER = 'cm0000000000000000000test'
 async function loadRouteIds() {
   const email = process.env.SMOKE_EMAIL
   const password = process.env.SMOKE_PASSWORD
+  const fallbacks = {
+    project: PLACEHOLDER,
+    requirement: PLACEHOLDER,
+    testCase: PLACEHOLDER,
+    run: PLACEHOLDER,
+    defect: PLACEHOLDER,
+    job: PLACEHOLDER,
+  }
   if (!email || !password) {
     console.log('note: SMOKE_EMAIL/SMOKE_PASSWORD not set; using placeholder route ids.\n')
-    return { project: PLACEHOLDER, requirement: PLACEHOLDER, testCase: PLACEHOLDER, run: PLACEHOLDER, defect: PLACEHOLDER, job: PLACEHOLDER }
-  }
-
-  const jar = []
-  const cookie = (response) => {
-    for (const raw of response.headers.getSetCookie?.() ?? []) jar.push(raw.split(';')[0])
-    return jar.join('; ')
+    return fallbacks
   }
 
   try {
-    await fetch(`${API}/auth/login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', cookie: cookie({ headers: { getSetCookie: () => [] } }) },
-      body: JSON.stringify({ email, password }),
-    })
-    const res = await fetch(`${API}/auth/login`, {
+    const login = await fetch(`${API}/auth/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
-    const auth = cookie(res)
-    if (!res.ok) throw new Error(`login failed with ${res.status}`)
+    if (!login.ok) throw new Error(`login returned ${login.status}`)
 
-    const csrf = (jar.map((c) => c.split('=')[1]).find((v) => v && v.length === 43) ?? null)
-    const headers = { cookie: auth, ...(csrf ? { 'x-csrf-token': decodeURIComponent(csrf) } : {}) }
-    const get = async (path) => (await fetch(`${API}${path}`, { headers })).json()
+    // The session id is HttpOnly; the CSRF cookie is readable and echoed for reads.
+    const csrf = login.headers
+      .getSetCookie()
+      .map((raw) => raw.split(';')[0])
+      .find((pair) => pair.startsWith('testpilot_csrf='))
+      ?.split('=')[1]
+    const cookie = login.headers.getSetCookie().map((raw) => raw.split(';')[0]).join('; ')
 
-    const projects = await get('/projects?pageSize=1')
-    const projectId = projects?.data?.items?.[0]?.id ?? PLACEHOLDER
-    const [requirements, cases, runs, defects, jobs] = await Promise.all([
-      get(`/projects/${projectId}/requirements?pageSize=1`),
-      get(`/projects/${projectId}/test-cases?pageSize=1`),
-      get(`/projects/${projectId}/test-runs?pageSize=1`),
-      get(`/projects/${projectId}/defects?pageSize=1`),
-      get(`/projects/${projectId}/automation/jobs?pageSize=1`),
-    ])
-    const first = (body) => body?.data?.items?.[0]?.id ?? PLACEHOLDER
-
-    return {
-      project: projectId,
-      requirement: first(requirements),
-      testCase: first(cases),
-      run: first(runs),
-      defect: first(defects),
-      job: first(jobs),
+    const get = async (path) => {
+      const response = await fetch(`${API}${path}`, { headers: { cookie, ...(csrf ? { 'x-csrf-token': decodeURIComponent(csrf) } : {}) } })
+      const body = await response.json()
+      if (!response.ok) throw new Error(`${path} returned ${response.status}`)
+      return body
     }
+
+    const projectId = (await get('/projects?pageSize=1'))?.data?.items?.[0]?.id ?? PLACEHOLDER
+    const paths = {
+      requirement: `/projects/${projectId}/requirements?pageSize=1`,
+      testCase: `/projects/${projectId}/test-cases?pageSize=1`,
+      run: `/projects/${projectId}/test-runs?pageSize=1`,
+      defect: `/projects/${projectId}/defects?pageSize=1`,
+      job: `/projects/${projectId}/automation/jobs?pageSize=1`,
+    }
+    const ids = { project: projectId }
+    await Promise.all(
+      Object.entries(paths).map(async ([key, path]) => {
+        ids[key] = (await get(path))?.data?.items?.[0]?.id ?? PLACEHOLDER
+      }),
+    )
+    return ids
   } catch (error) {
     console.log(`note: could not load live ids (${error.message}); using placeholder route ids.\n`)
-    return { project: PLACEHOLDER, requirement: PLACEHOLDER, testCase: PLACEHOLDER, run: PLACEHOLDER, defect: PLACEHOLDER, job: PLACEHOLDER }
+    return fallbacks
   }
 }
 
@@ -109,17 +111,17 @@ const appRoutes = [
   { path: `/requirements/${requirement.id}`, element: <RequirementDetailPage /> },
   { path: `/projects/${project.id}/test-cases`, element: <TestCasesPage /> },
   { path: `/projects/${project.id}/test-cases/new`, element: <TestCaseFormPage /> },
-  { path: `/test-cases/${testCase.id}`, element: <TestCaseDetailPage /> },
+  { path: `/projects/${project.id}/test-cases/${testCase.id}`, element: <TestCaseDetailPage /> },
   { path: `/projects/${project.id}/ai-test-generator`, element: <AiGeneratorPage /> },
   { path: `/projects/${project.id}/test-runs`, element: <TestRunsPage /> },
   { path: `/projects/${project.id}/test-runs/new`, element: <TestRunFormPage /> },
-  { path: `/test-runs/${run.id}`, element: <TestRunDetailPage /> },
+  { path: `/projects/${project.id}/test-runs/${run.id}`, element: <TestRunDetailPage /> },
   { path: `/projects/${project.id}/defects`, element: <DefectsPage /> },
   { path: `/projects/${project.id}/defects/new`, element: <DefectFormPage /> },
-  { path: `/defects/${defect.id}`, element: <DefectDetailPage /> },
+  { path: `/projects/${project.id}/defects/${defect.id}`, element: <DefectDetailPage /> },
   { path: `/projects/${project.id}/regression`, element: <RegressionPlannerPage /> },
   { path: `/projects/${project.id}/automation`, element: <AutomationPage /> },
-  { path: `/automation/jobs/${job.id}`, element: <AutomationJobPage /> },
+  { path: `/projects/${project.id}/automation/jobs/${job.id}`, element: <AutomationJobPage /> },
   { path: `/projects/${project.id}/reports`, element: <ReportsPage /> },
   { path: `/projects/${project.id}/release-readiness`, element: <ReleaseReadinessPage /> },
   { path: '/settings/members', element: <SettingsPage /> },
@@ -148,8 +150,7 @@ let failures = 0
 
 function render(label, path, element, { authenticated }) {
   if (authenticated) {
-    storage.setToken('mock.smoke.token')
-    storage.setUser(db.users[0])
+    storage.setUser({ id: PLACEHOLDER, name: "Smoke User", email: "smoke@testpilot.dev", role: "OWNER" })
   } else {
     storage.clearSession()
   }
