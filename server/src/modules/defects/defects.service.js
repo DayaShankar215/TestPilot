@@ -2,7 +2,7 @@ import { prisma } from '../../config/database.js'
 import { ApiError } from '../../utils/apiError.js'
 import { resolveProjectAccess } from '../../services/permissions.js'
 import { recordActivity } from '../../services/activity.js'
-import { paginate, readPaging, textSearch, orderBy } from '../../utils/query.js'
+import { paginate, readPaging, textSearch, orderBy, nextRef } from '../../utils/query.js'
 
 const SORTABLE = { title: 'title', severity: 'severity', status: 'status', createdAt: 'createdAt', updatedAt: 'updatedAt' }
 
@@ -54,18 +54,29 @@ export async function createDefect(auth, projectId, input) {
     if (!testCase) throw ApiError.badRequest('That test case does not belong to this project.')
   }
 
+  if (input.requirementId) {
+    const requirement = await prisma.requirement.findFirst({ where: { id: input.requirementId, projectId } })
+    if (!requirement) throw ApiError.badRequest('That requirement does not belong to this project.')
+  }
+
+  const ref = await nextRef('defect', projectId, 'DEF')
+
   const defect = await prisma.$transaction(async (tx) => {
     const created = await tx.defect.create({
       data: {
         projectId,
+        ref,
         title: input.title,
         description: input.description,
+        reproductionSteps: input.reproductionSteps,
+        expectedBehavior: input.expectedBehavior ?? null,
+        actualBehavior: input.actualBehavior ?? null,
         severity: input.severity,
         priority: input.priority,
-        type: input.type,
         status: input.status,
         assigneeId: input.assigneeId ?? null,
         reporterId: auth.user.id,
+        sourceResultId: input.sourceResultId ?? null,
         testCaseId: input.testCaseId ?? null,
         dueDate: input.dueDate ?? null,
       },
@@ -75,6 +86,10 @@ export async function createDefect(auth, projectId, input) {
     await tx.defectHistory.create({
       data: { defectId: created.id, fromStatus: null, toStatus: created.status, note: 'Defect logged', changedById: auth.user.id },
     })
+
+    if (input.sourceResultId) {
+      await tx.defectTestResult.create({ data: { defectId: created.id, resultId: input.sourceResultId } })
+    }
 
     return created
   })
@@ -97,12 +112,15 @@ export async function updateDefect(auth, projectId, defectId, input) {
   if (!existing) throw ApiError.notFound('Defect not found.')
 
   const data = {}
-  for (const field of ['title', 'description', 'severity', 'priority', 'type', 'status']) {
-    if (input[field] !== undefined) data[field] = input[field]
-  }
-  for (const field of ['assigneeId', 'testCaseId', 'dueDate']) {
+  for (const field of ['title', 'description', 'expectedBehavior', 'actualBehavior', 'severity', 'priority', 'status']) {
     if (input[field] !== undefined) data[field] = input[field] ?? null
   }
+  for (const field of ['assigneeId', 'testCaseId', 'sourceResultId', 'dueDate']) {
+    if (input[field] !== undefined) data[field] = input[field] ?? null
+  }
+  if (input.reproductionSteps !== undefined) data.reproductionSteps = input.reproductionSteps
+  if (input.archived === true) data.archivedAt = new Date()
+  if (input.archived === false) data.archivedAt = null
 
   if (input.status !== undefined && input.status !== existing.status) {
     if (input.status === 'closed') data.closedAt = new Date()

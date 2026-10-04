@@ -72,8 +72,13 @@ function highestRole(workspaceRole, projectRole) {
  * Loads a child record and proves the caller may access it through its project.
  * Used by every `/:resourceId` route that is not project-scoped.
  */
-export async function resolveScopedRecord(auth, { model, id, minimumRole = 'viewer', select, where = {} }) {
-  const record = await prisma[model].findFirst({ where: { id, ...where }, select: { projectId: true, ...select } })
+export async function resolveScopedRecord(auth, { model, id, minimumRole = 'viewer', select, include, where = {} }) {
+  // `select` needs projectId for the access check; `include` already returns scalars.
+  const query = select
+    ? { where: { id, ...where }, select: { projectId: true, ...select } }
+    : { where: { id, ...where }, ...(include ? { include } : {}) }
+
+  const record = await prisma[model].findFirst(query)
   if (!record) throw ApiError.notFound('The requested resource was not found.')
 
   const access = await resolveProjectAccess(auth, record.projectId, { minimumRole })
