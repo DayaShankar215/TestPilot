@@ -197,7 +197,7 @@ export function TestCasesPage() {
                 onSort: table.toggleSort,
                 render: (row) => (
                   <div className="stack-sm" style={{ gap: 3 }}>
-                    <Link to={ROUTES.testCase(row.id)} style={{ fontWeight: 'var(--weight-medium)' }}>
+                    <Link to={ROUTES.testCase(projectId, row.id)} style={{ fontWeight: 'var(--weight-medium)' }}>
                       {row.title}
                     </Link>
                     <span className="row-sm" style={{ gap: 6, flexWrap: 'wrap' }}>
@@ -269,7 +269,7 @@ export function TestCasesPage() {
               },
             ]}
             rows={data.items}
-            onRowClick={(row) => navigate(ROUTES.testCase(row.id))}
+            onRowClick={(row) => navigate(ROUTES.testCase(projectId, row.id))}
             empty={
               <EmptyState
                 icon={FileCheck2}
@@ -362,7 +362,7 @@ export function TestCaseFormPage() {
     try {
       const created = await testCasesApi.create(projectId, values)
       toast.success('Test case created', `${created.ref} saved as ${titleCase(created.status)}.`)
-      navigate(ROUTES.testCase(created.id))
+      navigate(ROUTES.testCase(projectId, created.id))
     } catch (error) {
       setApiError(error)
       toast.error('Could not create test case', error?.message)
@@ -530,15 +530,15 @@ export function TestCaseFormPage() {
 }
 
 export function TestCaseDetailPage() {
-  const { testCaseId } = useParams()
+  const { projectId, testCaseId } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
   const { can } = usePermissions()
   const [tab, setTab] = useState('steps')
   const [busy, setBusy] = useState(false)
 
-  const fetcher = useMemo(() => () => testCasesApi.get(testCaseId), [testCaseId])
-  const { data: testCase, isLoading, isError, error, refetch } = useApi(fetcher, [testCaseId])
+  const fetcher = useMemo(() => () => testCasesApi.get(projectId, testCaseId), [projectId, testCaseId])
+  const { data: testCase, isLoading, isError, error, refetch } = useApi(fetcher, [projectId, testCaseId])
 
   if (isError) {
     return (
@@ -557,14 +557,12 @@ export function TestCaseDetailPage() {
     )
   }
 
-  const projectId = testCase.projectId
-
   const duplicate = async () => {
     setBusy(true)
     try {
-      const copy = await testCasesApi.duplicate(testCaseId)
+      const copy = await testCasesApi.clone(projectId, testCaseId)
       toast.success('Test case duplicated', `${copy.ref} created as a draft.`)
-      navigate(ROUTES.testCase(copy.id))
+      navigate(ROUTES.testCase(projectId, copy.id))
     } catch (caught) {
       toast.error('Could not duplicate test case', caught?.message)
     } finally {
@@ -575,7 +573,7 @@ export function TestCaseDetailPage() {
   const deprecate = async () => {
     setBusy(true)
     try {
-      await testCasesApi.deprecate(testCaseId)
+      await testCasesApi.deprecate(projectId, testCaseId)
       toast.success('Test case deprecated', 'It stays available for historical results but will not appear in new runs.')
       refetch()
     } catch (caught) {

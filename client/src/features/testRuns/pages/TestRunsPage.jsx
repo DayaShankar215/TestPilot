@@ -188,7 +188,7 @@ export function TestRunsPage() {
                 onSort: table.toggleSort,
                 render: (row) => (
                   <div className="stack-sm" style={{ gap: 3 }}>
-                    <Link to={ROUTES.testRun(row.id)} style={{ fontWeight: 'var(--weight-medium)' }}>
+                    <Link to={ROUTES.testRun(projectId, row.id)} style={{ fontWeight: 'var(--weight-medium)' }}>
                       {row.name}
                     </Link>
                     <span className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>
@@ -273,7 +273,7 @@ export function TestRunsPage() {
               },
             ]}
             rows={data.items}
-            onRowClick={(row) => navigate(ROUTES.testRun(row.id))}
+            onRowClick={(row) => navigate(ROUTES.testRun(projectId, row.id))}
             empty={
               <EmptyState
                 icon={Play}
@@ -349,7 +349,7 @@ export function TestRunFormPage() {
     try {
       const created = await testRunsApi.create(projectId, { ...values, testCaseIds: selectedCaseIds })
       toast.success('Test run created', `${created.name} is ready to execute.`)
-      navigate(ROUTES.testRun(created.id))
+      navigate(ROUTES.testRun(projectId, created.id))
     } catch (error) {
       setApiError(error)
       toast.error('Could not create test run', error?.message)
@@ -490,14 +490,14 @@ export function TestRunFormPage() {
 }
 
 export function TestRunDetailPage() {
-  const { runId } = useParams()
+  const { projectId, runId } = useParams()
   const toast = useToast()
   const { can } = usePermissions()
   const [activeExecution, setActiveExecution] = useState(null)
   const [aborting, setAborting] = useState(false)
 
-  const fetcher = useMemo(() => () => testRunsApi.get(runId), [runId])
-  const { data: run, isLoading, isError, error, refetch, setData } = useApi(fetcher, [runId])
+  const fetcher = useMemo(() => () => testRunsApi.get(projectId, runId), [projectId, runId])
+  const { data: run, isLoading, isError, error, refetch, setData } = useApi(fetcher, [projectId, runId])
 
   if (isError) {
     return (
@@ -522,7 +522,7 @@ export function TestRunDetailPage() {
 
   const startRun = async () => {
     try {
-      const updated = await testRunsApi.update(runId, { status: 'in_progress' })
+      const updated = await testRunsApi.update(projectId, runId, { status: 'in_progress' })
       setData(updated)
       toast.success('Run started', 'Recording results will now mark the run as in progress.')
     } catch (caught) {
@@ -532,7 +532,7 @@ export function TestRunDetailPage() {
 
   const completeRun = async () => {
     try {
-      const updated = await testRunsApi.update(runId, { status: 'completed' })
+      const updated = await testRunsApi.update(projectId, runId, { status: 'completed' })
       setData(updated)
       toast.success('Run completed', 'Results are now included in coverage and reports.')
     } catch (caught) {
@@ -543,7 +543,7 @@ export function TestRunDetailPage() {
   const abortRun = async () => {
     setAborting(false)
     try {
-      const updated = await testRunsApi.update(runId, { status: 'aborted' })
+      const updated = await testRunsApi.update(projectId, runId, { status: 'aborted' })
       setData(updated)
       toast.warning('Run aborted', 'Remaining executions were not recorded.')
     } catch (caught) {
@@ -661,7 +661,7 @@ export function TestRunDetailPage() {
                     </td>
                     <td>
                       {execution.testCase ? (
-                        <Link to={ROUTES.testCase(execution.testCase.id)}>{execution.testCase.title}</Link>
+                        <Link to={ROUTES.testCase(projectId, execution.testCase.id)}>{execution.testCase.title}</Link>
                       ) : (
                         <span className="text-muted">Test case removed</span>
                       )}
@@ -756,7 +756,7 @@ function ExecutionModal({ runId, projectId, execution, onClose, onSaved }) {
     }
     setSaving(true)
     try {
-      const updated = await testRunsApi.recordExecution(runId, execution.id, parsed.data)
+      const updated = await testRunsApi.updateResult(execution.id, parsed.data)
       onSaved(updated)
     } catch (caught) {
       setError(caught?.message)

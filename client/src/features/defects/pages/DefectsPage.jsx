@@ -194,7 +194,7 @@ export function DefectsPage() {
                 onSort: table.toggleSort,
                 render: (row) => (
                   <div className="stack-sm" style={{ gap: 3 }}>
-                    <Link to={ROUTES.defect(row.id)} style={{ fontWeight: 'var(--weight-medium)' }}>
+                    <Link to={ROUTES.defect(projectId, row.id)} style={{ fontWeight: 'var(--weight-medium)' }}>
                       {row.title}
                     </Link>
                     <span className="row-sm" style={{ gap: 6, flexWrap: 'wrap', fontSize: 'var(--text-xs)' }}>
@@ -204,7 +204,7 @@ export function DefectsPage() {
                         </Link>
                       )}
                       {row.testCase && (
-                        <Link to={ROUTES.testCase(row.testCase.id)} className="text-muted">
+                        <Link to={ROUTES.testCase(projectId, row.testCase.id)} className="text-muted">
                           {row.testCase.ref}
                         </Link>
                       )}
@@ -267,7 +267,7 @@ export function DefectsPage() {
               },
             ]}
             rows={data.items}
-            onRowClick={(row) => navigate(ROUTES.defect(row.id))}
+            onRowClick={(row) => navigate(ROUTES.defect(projectId, row.id))}
             empty={
               <EmptyState
                 icon={Bug}
@@ -354,7 +354,7 @@ export function DefectFormPage() {
         testCaseId: values.testCaseId || null,
       })
       toast.success('Defect reported', `${created.ref} created.`)
-      navigate(ROUTES.defect(created.id))
+      navigate(ROUTES.defect(projectId, created.id))
     } catch (error) {
       setApiError(error)
       toast.error('Could not report defect', error?.message)
@@ -525,7 +525,7 @@ export function DefectFormPage() {
 }
 
 export function DefectDetailPage() {
-  const { defectId } = useParams()
+  const { projectId, defectId } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
   const { can } = usePermissions()
@@ -534,8 +534,8 @@ export function DefectDetailPage() {
   const [posting, setPosting] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const fetcher = useMemo(() => () => defectsApi.get(defectId), [defectId])
-  const { data: defect, isLoading, isError, error, refetch, setData } = useApi(fetcher, [defectId])
+  const fetcher = useMemo(() => () => defectsApi.get(projectId, defectId), [projectId, defectId])
+  const { data: defect, isLoading, isError, error, refetch, setData } = useApi(fetcher, [projectId, defectId])
 
   if (isError) {
     return (
@@ -560,7 +560,7 @@ export function DefectDetailPage() {
   const transition = async (status) => {
     setBusy(true)
     try {
-      const updated = await defectsApi.transition(defectId, status)
+      const updated = await defectsApi.update(projectId, defectId, { status })
       setData(updated)
       toast.success('Status updated', `Defect moved to ${status.replace('_', ' ')}.`)
     } catch (caught) {
@@ -573,9 +573,9 @@ export function DefectDetailPage() {
   const retest = async () => {
     setBusy(true)
     try {
-      const response = await defectsApi.retest(defectId)
+      const response = await defectsApi.retest(projectId, defectId)
       toast.success('Retest run created', response.run.name)
-      navigate(ROUTES.testRun(response.run.id))
+      navigate(ROUTES.testRun(projectId, response.run.id))
     } catch (caught) {
       toast.error('Could not create retest run', caught?.message)
       setBusy(false)
@@ -586,7 +586,7 @@ export function DefectDetailPage() {
     if (!comment.trim()) return
     setPosting(true)
     try {
-      const updated = await defectsApi.addComment(defectId, comment.trim())
+      const updated = await defectsApi.addComment(projectId, defectId, comment.trim())
       setData(updated)
       setComment('')
     } catch (caught) {
@@ -791,7 +791,7 @@ export function DefectDetailPage() {
               <dt>Test case</dt>
               <dd>
                 {defect.testCase ? (
-                  <Link to={ROUTES.testCase(defect.testCase.id)}>{defect.testCase.ref}</Link>
+                  <Link to={ROUTES.testCase(projectId, defect.testCase.id)}>{defect.testCase.ref}</Link>
                 ) : (
                   'Not linked'
                 )}

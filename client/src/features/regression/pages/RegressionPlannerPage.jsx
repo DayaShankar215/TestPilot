@@ -247,7 +247,7 @@ export function RegressionPlannerPage() {
                         {recommendation.previousRun && (
                           <span className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>
                             Last executed in{' '}
-                            <Link to={ROUTES.testRun(recommendation.previousRun.id)}>
+                            <Link to={ROUTES.testRun(projectId, recommendation.previousRun.id)}>
                               {recommendation.previousRun.name}
                             </Link>{' '}
                             {recommendation.previousExecutedAt

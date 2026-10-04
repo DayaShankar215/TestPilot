@@ -288,7 +288,7 @@ export function DashboardPage() {
                       </thead>
                       <tbody>
                         {data.recentRuns.map((run) => (
-                          <tr key={run.id} style={{ cursor: 'pointer' }} onClick={() => navigate(ROUTES.testRun(run.id))}>
+                          <tr key={run.id} style={{ cursor: 'pointer' }} onClick={() => navigate(ROUTES.testRun(activeProjectId, run.id))}>
                             <td>
                               <span className="truncate" style={{ display: 'block', maxWidth: 220, fontWeight: 'var(--weight-medium)' }}>
                                 {run.name}
@@ -331,7 +331,7 @@ export function DashboardPage() {
                   <ul className="link-list" style={{ padding: 'var(--space-4)' }}>
                     {data.recentDefects.map((defect) => (
                       <li key={defect.id}>
-                        <Link to={ROUTES.defect(defect.id)} className="link-tile">
+                        <Link to={ROUTES.defect(activeProjectId, defect.id)} className="link-tile">
                           <span className="stack-sm" style={{ gap: 2, minWidth: 0, flex: 1 }}>
                             <span className="row-sm" style={{ gap: 6 }}>
                               <span className="mono text-muted" style={{ fontSize: 'var(--text-xs)' }}>

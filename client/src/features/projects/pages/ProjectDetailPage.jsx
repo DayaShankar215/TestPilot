@@ -228,7 +228,7 @@ export function ProjectDetailPage() {
               <ul className="link-list" style={{ padding: 'var(--space-4)' }}>
                 {recentRuns.map((run) => (
                   <li key={run.id}>
-                    <Link to={ROUTES.testRun(run.id)} className="link-tile">
+                    <Link to={ROUTES.testRun(projectId, run.id)} className="link-tile">
                       <span className="link-tile__body">
                         <span className="row-between">
                           <span className="truncate" style={{ fontWeight: 'var(--weight-medium)' }}>
@@ -275,7 +275,7 @@ export function ProjectDetailPage() {
               <ul className="link-list" style={{ padding: 'var(--space-4)' }}>
                 {openDefects.map((defect) => (
                   <li key={defect.id}>
-                    <Link to={ROUTES.defect(defect.id)} className="link-tile">
+                    <Link to={ROUTES.defect(projectId, defect.id)} className="link-tile">
                       <span className="link-tile__body">
                         <span className="row-between">
                           <span className="truncate" style={{ fontWeight: 'var(--weight-medium)' }}>

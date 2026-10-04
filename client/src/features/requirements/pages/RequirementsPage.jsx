@@ -654,7 +654,7 @@ export function RequirementDetailPage() {
                           header: 'Reference',
                           width: 110,
                           render: (row) => (
-                            <Link to={ROUTES.testCase(row.id)} className="mono">
+                            <Link to={ROUTES.testCase(projectId, row.id)} className="mono">
                               {row.ref}
                             </Link>
                           ),
