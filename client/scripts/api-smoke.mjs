@@ -1,14 +1,50 @@
+/**
+ * Exercises every endpoint module against a running TestPilot API.
+ *
+ * Auth is cookie based, so this script installs a minimal cookie jar that keeps
+ * `document.cookie` in sync with `Set-Cookie`. That is what lets `apiClient`'s
+ * CSRF interceptor read the readable `testpilot_csrf` cookie and echo it on
+ * mutating calls, exactly as a browser would.
+ *
+ *   SMOKE_EMAIL=... SMOKE_PASSWORD=... node --experimental-strip-types scripts/api-smoke.mjs
+ */
 import * as endpoints from '../src/services/endpoints/index.js'
-import { db } from '../src/services/mock/db.js'
+import { apiClient } from '../src/services/apiClient.js'
 
-const project = db.projects[0]
-const requirement = db.requirements.find((item) => item.projectId === project.id)
-const testCase = db.testCases.find((item) => item.projectId === project.id)
-const run = db.testRuns.find((item) => item.projectId === project.id)
-const execution = run?.executions?.[0]
-const defect = db.defects.find((item) => item.projectId === project.id)
-const job = db.automationJobs[0]
-const changeSet = db.regressionChangeSets.find((item) => item.projectId === project.id)
+const EMAIL = process.env.SMOKE_EMAIL ?? 'arun.mehta@testpilot.dev'
+const PASSWORD = process.env.SMOKE_PASSWORD ?? 'TestPilot@2026'
+
+const jar = new Map()
+
+/** `readCookie` in storage.js reads document.cookie; give it one in Node. */
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = { cookie: '' }
+}
+
+function syncDocumentCookie() {
+  const readable = [...jar].filter(([name]) => name !== 'testpilot_sid')
+  globalThis.document.cookie = readable.map(([name, value]) => `${name}=${value}`).join('; ')
+}
+
+apiClient.interceptors.request.use((config) => {
+  // Axios has no cookie jar outside the browser, so replay the session cookie
+  // that `Set-Cookie` handed us. Browsers do this automatically.
+  if (jar.size > 0) {
+    config.headers.Cookie = [...jar].map(([name, value]) => `${name}=${value}`).join('; ')
+  }
+  return config
+})
+
+apiClient.interceptors.response.use((response) => {
+  const raw = response.headers?.['set-cookie'] ?? []
+  for (const entry of Array.isArray(raw) ? raw : [raw]) {
+    const [pair] = entry.split(';')
+    const index = pair.indexOf('=')
+    if (index > 0) jar.set(pair.slice(0, index).trim(), pair.slice(index + 1).trim())
+  }
+  syncDocumentCookie()
+  return response
+})
 
 let failures = 0
 let total = 0
@@ -31,26 +67,46 @@ async function check(label, fn) {
   }
 }
 
-await check('auth.login', () => endpoints.authApi.login({ email: db.users[0].email, password: 'TestPilot@2026' }))
+const firstOf = (result) => result?.items?.[0] ?? null
+
+console.log(`API: ${apiClient.defaults.baseURL}`)
+console.log(`user: ${EMAIL}\n`)
+
+await check('auth.login', () => endpoints.authApi.login({ email: EMAIL, password: PASSWORD }))
 await check('auth.me', () => endpoints.authApi.me())
-await check('auth.updateProfile', () => endpoints.authApi.updateProfile({ title: 'QA Lead' }))
-await check('auth.changePassword', () => endpoints.authApi.changePassword({ currentPassword: 'TestPilot@2026', newPassword: 'TestPilot@2027' }))
+await check('auth.refresh', () => endpoints.authApi.refresh())
 await check('auth.logout', () => endpoints.authApi.logout())
-await check('auth.login again', () => endpoints.authApi.login({ email: db.users[0].email, password: 'TestPilot@2026' }))
+await check('auth.login again', () => endpoints.authApi.login({ email: EMAIL, password: PASSWORD }))
+await check('users.profile', () => endpoints.usersApi.profile())
+await check('users.updateProfile', () => endpoints.usersApi.updateProfile({ title: 'QA Lead' }))
+await check('users.preferences', () => endpoints.usersApi.preferences())
+await check('users.updatePreferences', () => endpoints.usersApi.updatePreferences({ compactTables: true }))
+await check('users.list', () => endpoints.usersApi.list({ pageSize: 100 }))
 
-await check('dashboard.summary', () => endpoints.dashboardApi.summary({ projectId: project.id }))
+await check('workspaces.current', () => endpoints.workspacesApi.current())
+await check('workspaces.list', () => endpoints.workspacesApi.list())
+await check('workspaces.updateCurrent', () => endpoints.workspacesApi.updateCurrent({ name: 'TestPilot Engineering' }))
+await check('workspaces.members', () => endpoints.workspacesApi.members())
+
 await check('projects.list', () => endpoints.projectsApi.list({ page: 1, pageSize: 5 }))
-await check('projects.get', () => endpoints.projectsApi.get(project.id))
-await check('projects.overview', () => endpoints.projectsApi.overview(project.id))
-await check('projects.activity', () => endpoints.projectsApi.activity(project.id))
-await check('projects.create', () => endpoints.projectsApi.create({ name: 'Smoke Project', key: 'SMK', description: 'Created by smoke test' }))
-await check('projects.update', () => endpoints.projectsApi.update(project.id, { description: 'Smoke update' }))
-await check('projects.archive', () => endpoints.projectsApi.archive(db.projects[db.projects.length - 1].id))
+const project = firstOf(await check('projects.list (resolve)', () => endpoints.projectsApi.list({ page: 1, pageSize: 5 })))
+const projectId = project?.id
 
-await check('requirements.list', () => endpoints.requirementsApi.list(project.id, { page: 1, pageSize: 5 }))
-await check('requirements.get', () => endpoints.requirementsApi.get(requirement.id))
+await check('projects.get', () => endpoints.projectsApi.get(projectId))
+await check('projects.dashboard', () => endpoints.projectsApi.dashboard(projectId, { days: 30 }))
+await check('projects.activity', () => endpoints.projectsApi.activity(projectId))
+await check('projects.members', () => endpoints.projectsApi.members(projectId))
+const createdProject = await check('projects.create', () =>
+  endpoints.projectsApi.create({ name: 'Smoke Project', key: 'SMK', description: 'Created by smoke test' }),
+)
+await check('projects.update', () => endpoints.projectsApi.update(projectId, { description: 'Smoke update' }))
+if (createdProject?.id) await check('projects.archive', () => endpoints.projectsApi.archive(createdProject.id))
+
+await check('requirements.list', () => endpoints.requirementsApi.list(projectId, { page: 1, pageSize: 5 }))
+const requirement = firstOf(await check('requirements.list (resolve)', () => endpoints.requirementsApi.list(projectId, { pageSize: 5 })))
+await check('requirements.get', () => endpoints.requirementsApi.get(requirement?.id))
 await check('requirements.create', () =>
-  endpoints.requirementsApi.create(project.id, {
+  endpoints.requirementsApi.create(projectId, {
     title: 'Smoke requirement',
     description: 'Created by the endpoint smoke test.',
     module: 'Smoke',
@@ -59,13 +115,15 @@ await check('requirements.create', () =>
     status: 'draft',
   }),
 )
-await check('requirements.update', () => endpoints.requirementsApi.update(requirement.id, { priority: 'high' }))
-await check('requirements.archive', () => endpoints.requirementsApi.archive(db.requirements[db.requirements.length - 1].id))
+await check('requirements.update', () => endpoints.requirementsApi.update(requirement?.id, { priority: 'high' }))
+await check('requirements.history', () => endpoints.requirementsApi.history(requirement?.id))
+await check('requirements.testCases', () => endpoints.requirementsApi.testCases(requirement?.id, { pageSize: 5 }))
 
-await check('testCases.list', () => endpoints.testCasesApi.list(project.id, { page: 1, pageSize: 5 }))
-await check('testCases.get', () => endpoints.testCasesApi.get(testCase.id))
-await check('testCases.create', () =>
-  endpoints.testCasesApi.create(project.id, {
+await check('testCases.list', () => endpoints.testCasesApi.list(projectId, { page: 1, pageSize: 5 }))
+const testCase = firstOf(await check('testCases.list (resolve)', () => endpoints.testCasesApi.list(projectId, { pageSize: 5 })))
+await check('testCases.get', () => endpoints.testCasesApi.get(projectId, testCase?.id))
+const createdCase = await check('testCases.create', () =>
+  endpoints.testCasesApi.create(projectId, {
     title: 'Smoke test case',
     description: 'Created by the endpoint smoke test.',
     type: 'functional',
@@ -74,31 +132,31 @@ await check('testCases.create', () =>
     steps: [{ order: 1, action: 'Open the app', expected: 'Dashboard renders' }],
   }),
 )
-await check('testCases.update', () => endpoints.testCasesApi.update(testCase.id, { priority: 'high' }))
-await check('testCases.duplicate', () => endpoints.testCasesApi.duplicate(testCase.id))
-await check('testCases.deprecate', () => endpoints.testCasesApi.deprecate(testCase.id))
+await check('testCases.update', () => endpoints.testCasesApi.update(projectId, testCase?.id, { priority: 'high' }))
+await check('testCases.clone', () => endpoints.testCasesApi.clone(projectId, testCase?.id, { title: 'Smoke clone' }))
+await check('testCases.setRequirements', () => endpoints.testCasesApi.setRequirements(projectId, testCase?.id, requirement ? [requirement.id] : []))
+await check('testCases.history', () => endpoints.testCasesApi.history(projectId, testCase?.id))
+if (createdCase?.id) await check('testCases.deprecate', () => endpoints.testCasesApi.deprecate(projectId, createdCase.id))
 
 await check('aiGenerator.generate', () =>
-  endpoints.aiGeneratorApi.generate(project.id, { requirementId: requirement.id, count: 3, focus: 'happy path' }),
+  endpoints.aiGeneratorApi.generate({ requirementId: requirement?.id, count: 3, focus: 'happy path' }, projectId),
 )
 
-await check('testRuns.list', () => endpoints.testRunsApi.list(project.id, { page: 1, pageSize: 5 }))
-await check('testRuns.get', () => endpoints.testRunsApi.get(run.id))
-await check('testRuns.update', () => endpoints.testRunsApi.update(run.id, { status: 'in_progress' }))
-await check(
-  'testRuns.recordExecution',
-  () =>
-    endpoints.testRunsApi.recordExecution(run.id, execution.id, {
-      result: 'pass',
-      notes: 'Recorded by smoke test.',
-      durationMinutes: 2,
-    }),
-)
+await check('testRuns.list', () => endpoints.testRunsApi.list(projectId, { page: 1, pageSize: 5 }))
+const run = firstOf(await check('testRuns.list (resolve)', () => endpoints.testRunsApi.list(projectId, { pageSize: 5 })))
+await check('testRuns.get', () => endpoints.testRunsApi.get(projectId, run?.id))
+await check('testRuns.update', () => endpoints.testRunsApi.update(projectId, run?.id, { status: 'in_progress' }))
+await check('testRuns.results', () => endpoints.testRunsApi.results(projectId, run?.id, { pageSize: 5 }))
+const results = firstOf(await check('testRuns.results (resolve)', () => endpoints.testRunsApi.results(projectId, run?.id, { pageSize: 5 })))
+if (results?.id) {
+  await check('testRuns.updateResult', () => endpoints.testRunsApi.updateResult(results.id, { status: 'pass', notes: 'Recorded by smoke test.' }))
+}
 
-await check('defects.list', () => endpoints.defectsApi.list(project.id, { page: 1, pageSize: 5 }))
-await check('defects.get', () => endpoints.defectsApi.get(defect.id))
-await check('defects.create', () =>
-  endpoints.defectsApi.create(project.id, {
+await check('defects.list', () => endpoints.defectsApi.list(projectId, { page: 1, pageSize: 5 }))
+const defect = firstOf(await check('defects.list (resolve)', () => endpoints.defectsApi.list(projectId, { pageSize: 5 })))
+await check('defects.get', () => endpoints.defectsApi.get(projectId, defect?.id))
+const createdDefect = await check('defects.create', () =>
+  endpoints.defectsApi.create(projectId, {
     title: 'Smoke defect',
     description: 'Created by the endpoint smoke test.',
     severity: 'medium',
@@ -107,47 +165,33 @@ await check('defects.create', () =>
     reproductionSteps: [{ order: 1, action: 'Click the button', expected: 'Nothing happens' }],
   }),
 )
-await check('defects.update', () => endpoints.defectsApi.update(defect.id, { priority: 'high' }))
-await check('defects.addComment', () => endpoints.defectsApi.addComment(defect.id, 'Smoke comment'))
-await check('defects.transition', () => endpoints.defectsApi.transition(defect.id, 'in_progress'))
-await check('defects.retest', () => endpoints.defectsApi.retest(defect.id))
+await check('defects.update', () => endpoints.defectsApi.update(projectId, createdDefect?.id, { priority: 'high' }))
+await check('defects.addComment', () => endpoints.defectsApi.addComment(projectId, createdDefect?.id, 'Smoke comment'))
+await check('defects.history', () => endpoints.defectsApi.history(projectId, createdDefect?.id))
+await check('defects.reopen', () => endpoints.defectsApi.reopen(projectId, createdDefect?.id, { reason: 'Smoke reopen' }))
 
-await check('regression.changeSets', () => endpoints.regressionApi.changeSets(project.id))
-await check('regression.changeSet', () => endpoints.regressionApi.changeSet(project.id, changeSet.id))
-await check('regression.saveSuite', () =>
-  endpoints.regressionApi.saveSuite(project.id, {
-    name: 'Smoke regression suite',
-    changeSetId: changeSet.id,
-    testCaseIds: changeSet.recommendations.map((item) => item.testCaseId),
-  }),
-)
+await check('regression.plans', () => endpoints.regressionApi.plans(projectId, { pageSize: 5 }))
+const plan = firstOf(await check('regression.plans (resolve)', () => endpoints.regressionApi.plans(projectId, { pageSize: 5 })))
+if (plan?.id) await check('regression.plan', () => endpoints.regressionApi.plan(projectId, plan.id))
+await check('regression.createPlan', () => endpoints.regressionApi.createPlan(projectId, { name: 'Smoke regression suite', testCaseIds: testCase ? [testCase.id] : [] }))
 
-await check('automation.listJobs', () => endpoints.automationApi.listJobs(project.id))
-await check('automation.getJob', () => endpoints.automationApi.getJob(job.id))
-await check('automation.updateJob', () => endpoints.automationApi.updateJob(job.id, { schedule: '0 2 * * *' }))
-await check('automation.startJob', () => endpoints.automationApi.startJob(job.id))
+await check('automation.jobs', () => endpoints.automationApi.jobs(projectId, { pageSize: 5 }))
+const job = firstOf(await check('automation.jobs (resolve)', () => endpoints.automationApi.jobs(projectId, { pageSize: 5 })))
+await check('automation.job', () => endpoints.automationApi.job(projectId, job?.id))
+await check('automation.updateJob', () => endpoints.automationApi.updateJob(projectId, job?.id, { schedule: '0 2 * * *' }))
+await check('automation.artifacts', () => endpoints.automationApi.artifacts(projectId, job?.id))
 
-const failingJob = db.automationJobs.find((item) => item.lastRun?.failed > 0) ?? db.automationJobs[0]
-await check('automation.rerunJob', () => endpoints.automationApi.rerunJob(failingJob.id))
+await check('reports.execution', () => endpoints.reportsApi.execution(projectId, {}))
+await check('reports.coverage', () => endpoints.reportsApi.coverage(projectId, {}))
+await check('reports.defects', () => endpoints.reportsApi.defects(projectId, {}))
+await check('reports.releaseReadiness', () => endpoints.reportsApi.releaseReadiness(projectId))
 
-await check('reports.summary', () => endpoints.reportsApi.summary(project.id))
-await check('reports.coverage', () => endpoints.reportsApi.coverage(project.id))
-await check('reports.defectAging', () => endpoints.reportsApi.defectAging(project.id))
-await check('reports.releaseReadiness', () => endpoints.reportsApi.releaseReadiness(project.id))
-
-await check('settings.members', () => endpoints.settingsApi.members())
-await check('settings.workspace', () => endpoints.settingsApi.workspace())
-await check('settings.updateWorkspace', () => endpoints.settingsApi.updateWorkspace({ name: 'TestPilot Engineering' }))
-await check('settings.inviteMember', () => endpoints.settingsApi.inviteMember({ email: 'smoke@testpilot.dev', role: 'tester' }))
-await check('settings.updateMember', () => endpoints.settingsApi.updateMember(db.users[1].id, { role: 'qa_lead' }))
-await check('settings.removeMember', () => endpoints.settingsApi.removeMember(db.users[db.users.length - 1].id))
-await check('settings.preferences', () => endpoints.settingsApi.preferences())
-await check('settings.updatePreferences', () => endpoints.settingsApi.updatePreferences({ compactTables: true }))
-
-await check('notifications.list', () => endpoints.notificationsApi.list())
-await check('notifications.markRead', () => endpoints.notificationsApi.markRead(db.notifications[0].id))
+await check('notifications.list', () => endpoints.notificationsApi.list({ pageSize: 5 }))
+const notification = firstOf(await check('notifications.list (resolve)', () => endpoints.notificationsApi.list({ pageSize: 5 })))
+if (notification?.id) await check('notifications.markRead', () => endpoints.notificationsApi.markRead(notification.id, {}))
 await check('notifications.markAllRead', () => endpoints.notificationsApi.markAllRead())
-await check('users.list', () => endpoints.usersApi.list({ pageSize: 100 }))
 
-console.log(`\n${total - failures}/${total} endpoint calls succeeded through the mock adapter.`)
+await check('auth.logout (final)', () => endpoints.authApi.logout())
+
+console.log(`\n${total - failures}/${total} endpoint calls succeeded against ${apiClient.defaults.baseURL}.`)
 process.exit(failures === 0 ? 0 : 1)

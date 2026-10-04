@@ -27,6 +27,11 @@ export async function updatePreferences(req, res) {
   })
 }
 
+export async function changePassword(req, res) {
+  await service.changePassword(req.auth, req.body)
+  return sendSuccess(res, { message: 'Password changed. Sign in again with the new password.' })
+}
+
 export async function searchUsers(req, res) {
   const paging = pageOf(req.query)
   const { items, total } = await service.searchUsers(req.auth, { ...req.query, ...paging })
@@ -89,4 +94,37 @@ export async function removeMember(req, res) {
     message: 'Member removed from workspace',
     data: await service.removeWorkspaceMember(req.auth, req.params.workspaceId, req.params.memberId),
   })
+}
+
+/**
+ * `/workspaces/current` handlers. `resolveCurrentWorkspace` has already swapped
+ * the literal `current` for a real workspace id, so these reuse the id-scoped
+ * services rather than duplicating them.
+ */
+
+export async function getCurrentWorkspace(req, res) {
+  return sendSuccess(res, { data: await service.getWorkspace(req.auth, req.params.workspaceId) })
+}
+
+export async function updateCurrentWorkspace(req, res) {
+  return sendSuccess(res, {
+    message: 'Workspace updated',
+    data: await service.renameWorkspace(req.auth, req.params.workspaceId, req.body),
+  })
+}
+
+export async function listCurrentMembers(req, res) {
+  return listMembers(req, res)
+}
+
+export async function addCurrentMember(req, res) {
+  return addMember(req, res)
+}
+
+export async function updateCurrentMember(req, res) {
+  return updateMember(req, res)
+}
+
+export async function removeCurrentMember(req, res) {
+  return removeMember(req, res)
 }

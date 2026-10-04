@@ -1,12 +1,19 @@
 import { z } from 'zod'
-import { preferencesSchema } from '../auth/auth.schemas.js'
+import { changePasswordSchema, preferencesSchema } from '../auth/auth.schemas.js'
 
-export const profileSchema = z.object({
-  name: z.string().trim().min(2).max(80),
-  title: z.string().trim().max(80).nullish(),
-  avatarUrl: z.string().trim().url('Avatar must be a valid URL').max(500).nullish(),
-  timezone: z.string().trim().min(1).max(40).optional(),
-})
+/** PATCH semantics: every field is optional, but at least one must be sent. */
+export const profileSchema = z
+  .object({
+    name: z.string().trim().min(2).max(80).optional(),
+    title: z.string().trim().max(80).nullish(),
+    avatarUrl: z.string().trim().url('Avatar must be a valid URL').max(500).nullish(),
+    timezone: z.string().trim().min(1).max(40).optional(),
+  })
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: 'Provide at least one field to update',
+  })
+
+export { changePasswordSchema }
 
 export const preferencesUpdateSchema = preferencesSchema.partial()
 

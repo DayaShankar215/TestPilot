@@ -65,6 +65,9 @@ export async function searchUsers(auth, { search, workspaceId, skip, take }) {
 }
 
 export async function listWorkspaceMembers(auth, workspaceId, { search, skip, take }) {
+  // Membership must be proven before any roster data is returned.
+  await getWorkspace(auth, workspaceId)
+
   const where = {
     workspaceId,
     ...(search
