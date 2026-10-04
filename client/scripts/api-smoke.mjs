@@ -140,7 +140,7 @@ await check('testCases.setRequirements', () =>
   endpoints.testCasesApi.setRequirements(projectId, testCase?.id, requirement ? [requirement.id] : []),
 )
 await check('testCases.history', () => endpoints.testCasesApi.history(projectId, testCase?.id))
-await check('testCases.deprecate', () => endpoints.testCasesApi.deprecate(projectId, testCase?.id))
+// Deprecating is left until last: an archived case can no longer join a new run.
 
 await check('aiGenerator.generate', () =>
   endpoints.aiGeneratorApi.generate(
@@ -216,6 +216,8 @@ await check('automation.updateJob', () => endpoints.automationApi.updateJob(proj
 await check('automation.artifacts', () => endpoints.automationApi.artifacts(projectId, job?.id))
 // Runs are queued as rows; without the Playwright worker running they stay queued.
 await check('automation.startJob', () => endpoints.automationApi.startJob(projectId, job?.id))
+
+await check('testCases.deprecate', () => endpoints.testCasesApi.deprecate(projectId, testCase?.id))
 
 await check('reports.execution', () => endpoints.reportsApi.execution(projectId, {}))
 await check('reports.coverage', () => endpoints.reportsApi.coverage(projectId, {}))
