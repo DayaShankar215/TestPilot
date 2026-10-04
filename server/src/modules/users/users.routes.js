@@ -8,17 +8,26 @@ import { ApiError } from '../../utils/apiError.js'
 
 /**
  * The API contract addresses the caller's own workspace as `/workspaces/current`
- * rather than by id. Rewriting the param here keeps every service and controller
- * working against a concrete workspace id.
+ * rather than by id, so the literal segment carries no `:workspaceId` param.
+ * Resolving it here lets every service and controller keep working against a
+ * concrete workspace id.
+ *
+ * Must run *after* any `validate({ params })` on the same route, because validate
+ * replaces `req.params` with the parsed schema output.
  */
 function resolveCurrentWorkspace(req, _res, next) {
-  if (req.params.workspaceId === 'current') {
-    const workspaceId = req.auth?.primaryWorkspaceId
-    if (!workspaceId) {
-      return next(new ApiError({ status: 404, code: 'WORKSPACE_NOT_FOUND', message: 'No workspace is associated with this account.' }))
-    }
-    req.params.workspaceId = workspaceId
+  if (req.params.workspaceId && req.params.workspaceId !== 'current') {
+    return next()
   }
+
+  const workspaceId = req.auth?.primaryWorkspaceId
+  if (!workspaceId) {
+    return next(
+      new ApiError({ status: 404, code: 'WORKSPACE_NOT_FOUND', message: 'No workspace is associated with this account.' }),
+    )
+  }
+
+  req.params.workspaceId = workspaceId
   return next()
 }
 

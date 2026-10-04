@@ -61,6 +61,9 @@ export const env = Object.freeze({
   isTest: raw.NODE_ENV === 'test',
   corsOrigins: raw.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean),
   automationAllowedHosts: raw.AUTOMATION_ALLOWED_HOSTS.split(',').map((host) => host.trim()).filter(Boolean),
+  // The raw schema keeps these as strings; expose real booleans so callers
+  // never treat the string 'false' as truthy.
+  AUTOMATION_ENABLED: raw.AUTOMATION_ENABLED === 'true',
   rateLimitWindowMs: raw.RATE_LIMIT_WINDOW_MS,
   rateLimitMax: raw.RATE_LIMIT_MAX,
   authRateLimitMax: raw.AUTH_RATE_LIMIT_MAX,
