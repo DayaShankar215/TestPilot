@@ -30,13 +30,13 @@ export function AutomationPage() {
   const { can } = usePermissions()
   const [busyJobId, setBusyJobId] = useState(null)
 
-  const jobsFetcher = useMemo(() => () => automationApi.listJobs(projectId), [projectId])
+  const jobsFetcher = useMemo(() => () => automationApi.jobs(projectId), [projectId])
   const { data: jobs, isLoading, isError, error, refetch } = useApi(jobsFetcher, [projectId])
 
   const startJob = async (job) => {
     setBusyJobId(job.id)
     try {
-      await automationApi.startJob(job.id)
+      await automationApi.startJob(projectId, job.id)
       toast.success('Job queued', `${job.name} started against ${ENVIRONMENT[job.targetEnvironment]?.label ?? job.targetEnvironment}.`)
       refetch()
     } catch (caught) {

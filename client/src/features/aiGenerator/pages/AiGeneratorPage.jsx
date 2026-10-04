@@ -97,7 +97,7 @@ export function AiGeneratorPage() {
     setResult(null)
     setDecisions({})
     try {
-      const response = await aiGeneratorApi.generate(projectId, parsed.data)
+      const response = await aiGeneratorApi.generate(parsed.data, projectId)
       setResult(response)
       setEditing(null)
       toast.info(
