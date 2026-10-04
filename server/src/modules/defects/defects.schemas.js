@@ -24,7 +24,6 @@ export const createDefectSchema = z.object({
   requirementId: z.string().trim().min(1).nullish(),
   testCaseId: z.string().trim().min(1).nullish(),
   sourceResultId: z.string().trim().min(1).nullish(),
-  dueDate: z.coerce.date().nullish(),
 })
 
 export const updateDefectSchema = createDefectSchema

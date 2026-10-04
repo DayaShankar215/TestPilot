@@ -39,44 +39,51 @@ async function buildRecommendations(projectId) {
 
   const cases = await prisma.testCase.findMany({
     where: { projectId, archivedAt: null },
-    select: { id: true, ref: true, title: true, module: true, requirementLinks: { select: { requirementId: true } } },
+    select: {
+      id: true,
+      ref: true,
+      title: true,
+      requirementLinks: {
+        select: { requirement: { select: { id: true, ref: true, module: true } } },
+      },
+    },
   })
 
   const recommendations = []
-  const seen = new Set()
 
   for (const testCase of cases) {
     const covered = testCase.requirementLinks
-      .map((link) => changedRequirements.get(link.requirementId))
+      .map((link) => changedRequirements.get(link.requirement.id))
       .filter(Boolean)
 
     if (covered.length > 0) {
-      const first = covered[0]
       recommendations.push({
         id: `rec_${testCase.id}_requirement`,
         testCaseId: testCase.id,
         ref: testCase.ref,
         title: testCase.title,
         reason: `Covers changed requirement ${covered.map((row) => row.ref).join(', ')}`,
-        path: [first.module, first.ref].filter(Boolean),
+        path: covered.map((row) => row.module).filter(Boolean),
         impact: 'high',
       })
-      seen.add(testCase.id)
       continue
     }
 
-    const upstream = testCase.module ? dependentModules.get(testCase.module) : null
+    // No direct requirement changed, so fall back to the modules the case's
+    // requirements depend on through `module_dependencies`.
+    const upstream = testCase.requirementLinks
+      .map((link) => dependentModules.get(link.requirement.module))
+      .find(Boolean)
     if (upstream) {
       recommendations.push({
         id: `rec_${testCase.id}_dependency`,
         testCaseId: testCase.id,
         ref: testCase.ref,
         title: testCase.title,
-        reason: `Module ${testCase.module} depends on changed module ${upstream}`,
-        path: [upstream, testCase.module],
+        reason: `Depends on module ${upstream}, which changed`,
+        path: [upstream],
         impact: 'medium',
       })
-      seen.add(testCase.id)
     }
   }
 

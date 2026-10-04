@@ -145,7 +145,10 @@ export async function updateJob(auth, projectId, jobId, input) {
 export async function queueRun(auth, projectId, jobId, input = {}) {
   await resolveProjectAccess(auth, projectId, { minimumRole: 'tester' })
 
-  const job = await prisma.automationJob.findFirst({ where: { id: jobId, projectId } })
+  const job = await prisma.automationJob.findFirst({
+    where: { id: jobId, projectId },
+    include: { ...JOB_INCLUDE, runs: { orderBy: { createdAt: 'desc' }, take: 20 } },
+  })
   if (!job) throw ApiError.notFound('Automation job not found.')
   if (!env.AUTOMATION_ENABLED) throw ApiError.forbidden('Automation is disabled on this server.')
   if (!job.enabled) throw ApiError.badRequest('This job is disabled.')

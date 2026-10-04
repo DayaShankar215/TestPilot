@@ -79,7 +79,6 @@ export async function createDefect(auth, projectId, input) {
         reporterId: auth.user.id,
         sourceResultId: input.sourceResultId ?? null,
         testCaseId: input.testCaseId ?? null,
-        dueDate: input.dueDate ?? null,
       },
       include: DEFECT_INCLUDE,
     })
@@ -116,7 +115,7 @@ export async function updateDefect(auth, projectId, defectId, input) {
   for (const field of ['title', 'description', 'expectedBehavior', 'actualBehavior', 'severity', 'priority', 'status']) {
     if (input[field] !== undefined) data[field] = input[field] ?? null
   }
-  for (const field of ['assigneeId', 'testCaseId', 'sourceResultId', 'dueDate']) {
+  for (const field of ['assigneeId', 'testCaseId', 'sourceResultId']) {
     if (input[field] !== undefined) data[field] = input[field] ?? null
   }
   if (input.reproductionSteps !== undefined) data.reproductionSteps = input.reproductionSteps
