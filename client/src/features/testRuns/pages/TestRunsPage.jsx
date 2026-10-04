@@ -700,7 +700,6 @@ export function TestRunDetailPage() {
       </Card>
 
       <ExecutionModal
-        runId={runId}
         projectId={run.projectId}
         execution={activeExecution}
         onClose={() => setActiveExecution(null)}
@@ -729,7 +728,7 @@ export function TestRunDetailPage() {
   )
 }
 
-function ExecutionModal({ runId, projectId, execution, onClose, onSaved }) {
+function ExecutionModal({ projectId, execution, onClose, onSaved }) {
   const [result, setResult] = useState('not_run')
   const [actualResult, setActualResult] = useState('')
   const [notes, setNotes] = useState('')
