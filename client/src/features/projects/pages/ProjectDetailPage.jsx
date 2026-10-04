@@ -36,7 +36,7 @@ export function ProjectDetailPage() {
   const navigate = useNavigate()
   const { can } = usePermissions()
 
-  const fetcher = useMemo(() => () => projectsApi.overview(projectId), [projectId])
+  const fetcher = useMemo(() => () => projectsApi.get(projectId), [projectId])
   const { data, isLoading, isError, error, refetch } = useApi(fetcher, [projectId])
 
   if (isError) {

@@ -27,29 +27,29 @@ export function RegressionPlannerPage() {
   const [suiteName, setSuiteName] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const changeSetsFetcher = useMemo(() => () => regressionApi.changeSets(projectId), [projectId])
+  const plansFetcher = useMemo(() => () => regressionApi.plans(projectId), [projectId])
   const {
-    data: changeSets,
+    data: plans,
     isLoading,
     isError,
     error,
     refetch,
-  } = useApi(changeSetsFetcher, [projectId])
+  } = useApi(plansFetcher, [projectId])
 
-  const firstChangeSet = changeSets?.[0]
-  const activeId = firstChangeSet?.id
+  const firstPlan = plans?.items?.[0]
+  const activeId = firstPlan?.id
 
   const detailFetcher = useMemo(
-    () => () => regressionApi.changeSet(projectId, activeId),
+    () => () => regressionApi.plan(projectId, activeId),
     [projectId, activeId],
   )
   const {
-    data: changeSet,
+    data: plan,
     isLoading: isDetailLoading,
     error: detailError,
   } = useApi(detailFetcher, [projectId, activeId], { immediate: Boolean(activeId) })
 
-  const recommendations = changeSet?.recommendations ?? []
+  const recommendations = plan?.recommendations ?? []
   const selectedIds = recommendations.filter((item) => selected[item.id]).map((item) => item.testCaseId)
   const impactCounts = recommendations.reduce((accumulator, item) => {
     accumulator[item.impact] = (accumulator[item.impact] ?? 0) + 1
@@ -57,7 +57,7 @@ export function RegressionPlannerPage() {
   }, {})
 
   const saveSuite = async () => {
-    const parsed = regressionSuiteSchema.safeParse({ name: suiteName || `Regression — ${changeSet?.name}`, testCaseIds: selectedIds })
+    const parsed = regressionSuiteSchema.safeParse({ name: suiteName || `Regression — ${plan?.name}`, testCaseIds: selectedIds })
     if (!parsed.success) {
       toast.error('Could not create the regression run', parsed.error.issues[0]?.message)
       return
@@ -65,7 +65,7 @@ export function RegressionPlannerPage() {
 
     setSaving(true)
     try {
-      await regressionApi.saveSuite(projectId, { ...parsed.data, changeSetId: activeId })
+      await regressionApi.createPlan(projectId, parsed.data)
       toast.success(
         'Regression run ready',
         `${parsed.data.testCaseIds.length} recommended test cases selected. Create a run to execute them.`,
@@ -118,22 +118,22 @@ export function RegressionPlannerPage() {
         </Card>
       )}
 
-      {!isLoading && changeSets?.length === 0 && (
+      {!isLoading && !plans?.items?.length && (
         <Card>
           <CardBody flush>
             <EmptyState
               icon={GitPullRequestArrow}
-              title="No change sets recorded"
-              description="Once changes are recorded against requirements, the recommendation service will suggest which test cases to re-run."
+              title="No regression plans yet"
+              description="Create a plan from a base run and selected requirements to get recommended test cases to re-run."
             />
           </CardBody>
         </Card>
       )}
 
-      {changeSets?.length > 0 && (
+      {plans?.items?.length > 0 && (
         <>
           <div className="grid-3">
-            {changeSets.map((entry) => (
+            {plans.items.map((entry) => (
               <Card key={entry.id} interactive={entry.id === activeId}>
                 <CardBody className="stack-sm" style={{ gap: 6 }}>
                   <div className="row-between">
@@ -141,11 +141,11 @@ export function RegressionPlannerPage() {
                     {entry.id === activeId && <Badge tone="accent">Selected</Badge>}
                   </div>
                   <span className="card__subtitle">
-                    {entry.module} · {entry.requirements.length} changed requirement
-                    {entry.requirements.length === 1 ? '' : 's'}
+                    {entry.module ?? 'Plan'} · {entry.requirements?.length ?? 0} changed requirement
+                    {entry.requirements?.length === 1 ? '' : 's'}
                   </span>
                   <div className="row-sm" style={{ gap: 6, flexWrap: 'wrap' }}>
-                    {entry.requirements.map((requirement) => (
+                    {(entry.requirements ?? []).map((requirement) => (
                       <Link key={requirement.id} to={ROUTES.requirement(requirement.id)} className="badge badge--neutral mono">
                         {requirement.ref}
                       </Link>
@@ -187,7 +187,7 @@ export function RegressionPlannerPage() {
             />
             <CardBody className="stack">
               <Alert tone="info" icon={Info}>
-                {changeSet?.sourceNote ??
+                {plan?.sourceNote ??
                   'Recommendations come from the recommendation service and include the reason and dependency path behind each suggestion.'}
               </Alert>
 
@@ -278,7 +278,7 @@ export function RegressionPlannerPage() {
               <p className="text-secondary" style={{ fontSize: 'var(--text-sm)' }}>
                 Requirements updated after the baseline run. These drive the recommendations above.
               </p>
-              {(changeSet?.requirements ?? []).map((requirement) => (
+              {(plan?.requirements ?? []).map((requirement) => (
                 <Link key={requirement.id} to={ROUTES.requirement(requirement.id)} className="link-tile">
                   <span className="workspace-selector__mark" aria-hidden="true" style={{ fontSize: 9 }}>
                     REQ

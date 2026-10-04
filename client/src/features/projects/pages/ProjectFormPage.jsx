@@ -43,14 +43,17 @@ export function ProjectFormPage({ mode }) {
   })
 
   useEffect(() => {
-    usersApi.list().then(setUsers).catch(() => setUsers([]))
+    usersApi
+      .list({ pageSize: 200 })
+      .then(({ items }) => setUsers(items))
+      .catch(() => setUsers([]))
   }, [])
 
   useEffect(() => {
     if (!isEdit) {
       usersApi
-        .list()
-        .then((list) => {
+        .list({ pageSize: 200 })
+        .then(({ items: list }) => {
           if (list[0]) reset((current) => ({ ...current, ownerId: list[0].id }))
         })
         .catch(() => {})

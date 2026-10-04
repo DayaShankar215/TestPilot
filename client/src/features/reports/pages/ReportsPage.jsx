@@ -45,13 +45,13 @@ export function ReportsPage() {
   const toast = useToast()
   const { can } = usePermissions()
 
-  const summaryFetcher = useMemo(() => () => reportsApi.summary(projectId), [projectId])
+  const summaryFetcher = useMemo(() => () => reportsApi.execution(projectId), [projectId])
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useApi(summaryFetcher, [projectId])
 
   const coverageFetcher = useMemo(() => () => reportsApi.coverage(projectId), [projectId])
   const { data: coverage, isLoading: coverageLoading } = useApi(coverageFetcher, [projectId])
 
-  const agingFetcher = useMemo(() => () => reportsApi.defectAging(projectId), [projectId])
+  const agingFetcher = useMemo(() => () => reportsApi.defects(projectId), [projectId])
   const { data: aging, isLoading: agingLoading } = useApi(agingFetcher, [projectId])
 
   const exportCoverage = () => {

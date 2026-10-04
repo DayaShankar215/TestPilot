@@ -98,7 +98,7 @@ export function AutomationPage() {
                     size="sm"
                     onClick={async () => {
                       try {
-                        await automationApi.updateJob(job.id, { enabled: !job.enabled })
+                        await automationApi.updateJob(projectId, job.id, { enabled: !job.enabled })
                         toast.info(job.enabled ? 'Job disabled' : 'Job enabled', job.name)
                         refetch()
                       } catch (caught) {
@@ -217,7 +217,7 @@ export function AutomationJobPage() {
   const start = async () => {
     setBusy(true)
     try {
-      const updated = await automationApi.startJob(jobId)
+      const updated = await automationApi.startJob(projectId, jobId)
       setData(updated)
       toast.success('Job started', 'Results appear here once the runner reports back.')
     } catch (caught) {
@@ -230,7 +230,7 @@ export function AutomationJobPage() {
   const rerunFailures = async () => {
     setBusy(true)
     try {
-      await automationApi.rerunJob(jobId)
+      await automationApi.rerunJob(projectId, jobId)
       toast.success('Rerun queued', 'Only previously failed specs will execute.')
     } catch (caught) {
       toast.error('Could not queue rerun', caught?.message)
@@ -323,7 +323,7 @@ export function AutomationJobPage() {
                 </p>
                 <div className="link-list">
                   {(job.testCases ?? []).map((testCase) => (
-                    <Link key={testCase.id} to={ROUTES.testCase(testCase.id)} className="link-tile">
+                    <Link key={testCase.id} to={ROUTES.testCase(projectId, testCase.id)} className="link-tile">
                       <span className="workspace-selector__mark" aria-hidden="true" style={{ fontSize: 9 }}>
                         TC
                       </span>
