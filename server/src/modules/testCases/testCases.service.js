@@ -130,6 +130,13 @@ export async function updateTestCase(auth, projectId, testCaseId, input) {
 
   const steps = input.steps ? normalizeSteps(input.steps) : null
 
+  // Any content change starts a new version; a version row is written for each.
+  const contentChanged =
+    Boolean(steps) ||
+    ['title', 'description', 'preconditions', 'testData', 'type', 'priority', 'status'].some(
+      (field) => input[field] !== undefined,
+    )
+
   const testCase = await prisma.$transaction(async (tx) => {
     // Steps are replaced wholesale so ordering can never drift.
     if (steps) {
@@ -139,24 +146,26 @@ export async function updateTestCase(auth, projectId, testCaseId, input) {
 
     const updated = await tx.testCase.update({
       where: { id: testCaseId },
-      data: { ...data, ...(steps ? { version: { increment: 1 } } : {}) },
+      data: { ...data, ...(contentChanged ? { version: { increment: 1 } } : {}) },
       include: CASE_INCLUDE,
     })
 
-    await tx.testCaseVersion.create({
-      data: {
-        testCaseId,
-        version: updated.version,
-        title: updated.title,
-        description: updated.description,
-        type: updated.type,
-        priority: updated.priority,
-        status: updated.status,
-        steps: steps ?? (await tx.testStep.findMany({ where: { testCaseId }, orderBy: { order: 'asc' } })),
-        changeNote: input.changeNote ?? 'Updated',
-        changedById: auth.user.id,
-      },
-    })
+    if (contentChanged) {
+      await tx.testCaseVersion.create({
+        data: {
+          testCaseId,
+          version: updated.version,
+          title: updated.title,
+          description: updated.description,
+          type: updated.type,
+          priority: updated.priority,
+          status: updated.status,
+          steps: steps ?? (await tx.testStep.findMany({ where: { testCaseId }, orderBy: { order: 'asc' } })),
+          changeNote: input.changeNote ?? 'Updated',
+          changedById: auth.user.id,
+        },
+      })
+    }
 
     return updated
   })

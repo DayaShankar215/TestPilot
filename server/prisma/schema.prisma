@@ -325,6 +325,7 @@ model TestCase {
   results              TestResult[]
   aiGeneration         AiGeneration?           @relation(fields: [aiGenerationId], references: [id])
   automationSelections AutomationJobTestCase[]
+  defects              Defect[]                @relation("DefectTestCase")
 
   @@unique([projectId, ref])
   @@index([projectId, status])
@@ -494,6 +495,7 @@ model Defect {
   assigneeId        String?
   reporterId        String
   sourceResultId    String?
+  testCaseId        String?
   retestRunId       String?
   archivedAt        DateTime?
   closedAt          DateTime?
@@ -503,6 +505,7 @@ model Defect {
   project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignee  User?              @relation("DefectAssignee", fields: [assigneeId], references: [id])
   reporter  User               @relation("DefectReporter", fields: [reporterId], references: [id])
+  testCase  TestCase?          @relation("DefectTestCase", fields: [testCaseId], references: [id], onDelete: SetNull)
   comments  DefectComment[]
   history   DefectHistory[]
   links     DefectTestResult[]

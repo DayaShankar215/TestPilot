@@ -13,9 +13,9 @@ const DEFECT_INCLUDE = {
   comments: { include: { author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
 }
 
-async function loadDefect(auth, projectId, defectId, include = DEFECT_INCLUDE) {
+async function loadDefect(auth, projectId, defectId) {
   await resolveProjectAccess(auth, projectId)
-  const defect = await prisma.defect.findFirst({ where: { id: defectId, projectId }, include })
+  const defect = await prisma.defect.findFirst({ where: { id: defectId, projectId }, include: DEFECT_INCLUDE })
   if (!defect) throw ApiError.notFound('Defect not found.')
   return defect
 }
@@ -27,6 +27,7 @@ export async function listDefects(auth, projectId, query) {
 
   const where = {
     projectId,
+    archivedAt: null,
     ...(query.status ? { status: query.status } : {}),
     ...(query.severity ? { severity: query.severity } : {}),
     ...(query.priority ? { priority: query.priority } : {}),
@@ -158,7 +159,7 @@ export async function updateDefect(auth, projectId, defectId, input) {
 
 export async function addComment(auth, projectId, defectId, body) {
   await resolveProjectAccess(auth, projectId, { minimumRole: 'tester' })
-  await loadDefect(auth, projectId, defectId, { id: true })
+  await loadDefect(auth, projectId, defectId)
 
   await prisma.defectComment.create({ data: { defectId, authorId: auth.user.id, body } })
 

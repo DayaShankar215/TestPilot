@@ -282,14 +282,12 @@ export async function releaseReadiness(auth, projectId, query) {
 export async function defectReport(auth, projectId) {
   await resolveProjectAccess(auth, projectId)
 
-  const [bySeverity, byStatus, byAssignee, aging] = await Promise.all([
+  const [bySeverity, byStatus, assigned, aging] = await Promise.all([
     prisma.defect.groupBy({ by: ['severity'], where: { projectId }, _count: { _all: true } }),
     prisma.defect.groupBy({ by: ['status'], where: { projectId }, _count: { _all: true } }),
-    prisma.defect.groupBy({
-      by: ['assigneeId'],
+    prisma.defect.findMany({
       where: { projectId, assigneeId: { not: null } },
-      _count: { _all: true },
-      include: { assignee: { select: { id: true, name: true } } },
+      select: { assigneeId: true, assignee: { select: { id: true, name: true } } },
     }),
     prisma.defect.findMany({
       where: { projectId, status: { not: 'closed' } },
@@ -298,15 +296,23 @@ export async function defectReport(auth, projectId) {
     }),
   ])
 
+  // `groupBy` cannot join relations, so assignee counts are tallied here.
+  const assigneeCounts = new Map()
+  for (const row of assigned) {
+    const entry = assigneeCounts.get(row.assigneeId) ?? {
+      id: row.assignee?.id ?? null,
+      name: row.assignee?.name ?? 'Unassigned',
+      count: 0,
+    }
+    entry.count += 1
+    assigneeCounts.set(row.assigneeId, entry)
+  }
+
   const now = Date.now()
   return {
     bySeverity: bySeverity.map((row) => ({ severity: row.severity, count: row._count._all })),
     byStatus: byStatus.map((row) => ({ status: row.status, count: row._count._all })),
-    byAssignee: byAssignee.map((row) => ({
-      id: row.assignee?.id ?? null,
-      name: row.assignee?.name ?? 'Unassigned',
-      count: row._count._all,
-    })),
+    byAssignee: [...assigneeCounts.values()].sort((a, b) => b.count - a.count),
     open: aging.map((row) => ({ ...row, ageDays: Math.floor((now - row.createdAt.getTime()) / DAY_MS) })),
   }
 }
