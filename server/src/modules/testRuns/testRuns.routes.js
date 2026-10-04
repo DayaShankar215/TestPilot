@@ -7,7 +7,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js'
 import { listQuery, resultStatusEnum } from '../../schemas/common.js'
 
 /** `/projects/:projectId/test-runs` */
-export const testRunsRouter = Router()
+export const testRunsRouter = Router({ mergeParams: true })
 
 testRunsRouter.use(authenticate)
 

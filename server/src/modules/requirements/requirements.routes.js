@@ -7,7 +7,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js'
 import { listQuery } from '../../schemas/common.js'
 
 /** `/projects/:projectId/requirements` */
-export const projectRequirementsRouter = Router()
+export const projectRequirementsRouter = Router({ mergeParams: true })
 
 projectRequirementsRouter.use(authenticate)
 

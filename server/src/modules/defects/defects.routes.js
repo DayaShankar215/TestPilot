@@ -7,7 +7,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js'
 import { listQuery } from '../../schemas/common.js'
 
 /** `/api/v1/projects/:projectId/defects` */
-export const defectsRouter = Router()
+export const defectsRouter = Router({ mergeParams: true })
 
 defectsRouter.use(authenticate)
 

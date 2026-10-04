@@ -35,7 +35,7 @@ const upload = multer({
 const jobOnlyParams = z.object({ jobId: idParam('jobId') })
 
 /** `/api/v1/projects/:projectId/automation` */
-export const automationRouter = Router()
+export const automationRouter = Router({ mergeParams: true })
 
 automationRouter.use(authenticate)
 

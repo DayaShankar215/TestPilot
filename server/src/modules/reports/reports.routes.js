@@ -6,7 +6,7 @@ import { authenticate } from '../../middleware/authenticate.js'
 import { asyncHandler } from '../../utils/asyncHandler.js'
 
 /** `/projects/:projectId` reporting, dashboard, and activity. */
-export const reportsRouter = Router()
+export const reportsRouter = Router({ mergeParams: true })
 
 reportsRouter.use(authenticate)
 

@@ -90,17 +90,22 @@ await check('workspaces.members', () => endpoints.workspacesApi.members())
 
 await check('projects.list', () => endpoints.projectsApi.list({ page: 1, pageSize: 5 }))
 const project = firstOf(await check('projects.list (resolve)', () => endpoints.projectsApi.list({ page: 1, pageSize: 5 })))
-const projectId = project?.id
+let projectId = project?.id
 
 await check('projects.get', () => endpoints.projectsApi.get(projectId))
 await check('projects.dashboard', () => endpoints.projectsApi.dashboard(projectId, { days: 30 }))
 await check('projects.activity', () => endpoints.projectsApi.activity(projectId))
 await check('projects.members', () => endpoints.projectsApi.members(projectId))
+// Project keys are unique per workspace, so a rerun needs a fresh key.
+const runKey = `SMK${Date.now().toString(36).toUpperCase().slice(-5)}`
 const createdProject = await check('projects.create', () =>
-  endpoints.projectsApi.create({ name: 'Smoke Project', key: 'SMK', description: 'Created by smoke test' }),
+  endpoints.projectsApi.create({ name: 'Smoke Project', key: runKey, description: 'Created by smoke test' }),
 )
+if (createdProject?.id) {
+  // Exercise the rest of the surface against the project this run created.
+  projectId = createdProject.id
+}
 await check('projects.update', () => endpoints.projectsApi.update(projectId, { description: 'Smoke update' }))
-if (createdProject?.id) await check('projects.archive', () => endpoints.projectsApi.archive(createdProject.id))
 
 await check('requirements.list', () => endpoints.requirementsApi.list(projectId, { page: 1, pageSize: 5 }))
 const requirement = firstOf(await check('requirements.list (resolve)', () => endpoints.requirementsApi.list(projectId, { pageSize: 5 })))

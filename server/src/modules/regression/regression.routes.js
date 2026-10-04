@@ -6,7 +6,7 @@ import { authenticate, requireCsrf } from '../../middleware/authenticate.js'
 import { asyncHandler } from '../../utils/asyncHandler.js'
 
 /** `/api/v1/projects/:projectId/regression` */
-export const regressionRouter = Router()
+export const regressionRouter = Router({ mergeParams: true })
 
 regressionRouter.use(authenticate)
 

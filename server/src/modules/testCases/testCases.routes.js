@@ -7,7 +7,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js'
 import { listQuery } from '../../schemas/common.js'
 
 /** Test cases are project-scoped in both the contract and the client. */
-export const testCasesRouter = Router()
+export const testCasesRouter = Router({ mergeParams: true })
 
 testCasesRouter.use(authenticate)
 
