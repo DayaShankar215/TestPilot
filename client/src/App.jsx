@@ -151,21 +151,21 @@ function AppRoutes() {
 
         <Route path="/projects/:projectId/test-cases" element={<Page><TestCasesPage /></Page>} />
         <Route path="/projects/:projectId/test-cases/new" element={<Page><TestCaseFormPage /></Page>} />
-        <Route path="/test-cases/:testCaseId" element={<Page><TestCaseDetailPage /></Page>} />
+        <Route path="/projects/:projectId/test-cases/:testCaseId" element={<Page><TestCaseDetailPage /></Page>} />
 
         <Route path="/projects/:projectId/ai-test-generator" element={<Page><AiGeneratorPage /></Page>} />
 
         <Route path="/projects/:projectId/test-runs" element={<Page><TestRunsPage /></Page>} />
         <Route path="/projects/:projectId/test-runs/new" element={<Page><TestRunFormPage /></Page>} />
-        <Route path="/test-runs/:runId" element={<Page><TestRunDetailPage /></Page>} />
+        <Route path="/projects/:projectId/test-runs/:runId" element={<Page><TestRunDetailPage /></Page>} />
 
         <Route path="/projects/:projectId/defects" element={<Page><DefectsPage /></Page>} />
         <Route path="/projects/:projectId/defects/new" element={<Page><DefectFormPage /></Page>} />
-        <Route path="/defects/:defectId" element={<Page><DefectDetailPage /></Page>} />
+        <Route path="/projects/:projectId/defects/:defectId" element={<Page><DefectDetailPage /></Page>} />
 
         <Route path="/projects/:projectId/regression" element={<Page><RegressionPlannerPage /></Page>} />
         <Route path="/projects/:projectId/automation" element={<Page><AutomationPage /></Page>} />
-        <Route path="/automation/jobs/:jobId" element={<Page><AutomationJobPage /></Page>} />
+        <Route path="/projects/:projectId/automation/jobs/:jobId" element={<Page><AutomationJobPage /></Page>} />
         <Route path="/projects/:projectId/reports" element={<Page><ReportsPage /></Page>} />
         <Route path="/projects/:projectId/release-readiness" element={<Page><ReleaseReadinessPage /></Page>} />
 
