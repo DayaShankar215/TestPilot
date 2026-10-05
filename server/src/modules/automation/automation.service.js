@@ -179,7 +179,7 @@ export async function queueRun(auth, projectId, jobId, input = {}) {
     summary: `Queued ${job.name}`,
   })
 
-  return shape(await loadJob(auth, projectId, jobId)), run
+  return { job: shape(await loadJob(auth, projectId, jobId)), run }
 }
 
 export async function rerunJob(auth, projectId, jobId) {
