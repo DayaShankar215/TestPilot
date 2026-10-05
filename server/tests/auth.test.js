@@ -185,28 +185,40 @@ describe('workspace isolation', () => {
     expect(res.body.data.items.map((item) => item.slug)).toEqual(['testpilot-it'])
   })
 
-  it('conceals workspaces the caller is not a member of', async () => {
+  it('conceals projects in workspaces the caller is not a member of', async () => {
+    // Idempotent: a previously interrupted run may have left the tenant behind.
+    await prisma.workspace.deleteMany({ where: { slug: 'testpilot-foreign' } })
+
     const other = await prisma.workspace.create({
       data: { name: 'Foreign', slug: 'testpilot-foreign', ownerId: member.id },
+    })
+    const foreignProject = await prisma.project.create({
+      data: { workspaceId: other.id, key: 'FOREIGN', name: 'Foreign project', ownerId: member.id },
     })
 
     const agent = request.agent(app)
     await agent.post('/api/v1/auth/login').send({ email: owner.email, password: PASSWORD })
-    const res = await agent.get(`/api/v1/workspaces/${other.id}`)
+
+    // No workspace route exposes other tenants, so isolation is asserted on a
+    // real project resource instead.
+    const res = await agent.get(`/api/v1/projects/${foreignProject.id}`)
     expect(res.status).toBe(404)
 
+    const list = await agent.get('/api/v1/workspaces')
+    expect(list.body.data.items.map((item) => item.slug)).not.toContain('testpilot-foreign')
+
+    await prisma.project.delete({ where: { id: foreignProject.id } })
     await prisma.workspace.delete({ where: { id: other.id } })
   })
 
   it('stops a tester from renaming the workspace', async () => {
-    const workspace = await prisma.workspace.findUniqueOrThrow({ where: { slug: 'testpilot-it' } })
-
     const agent = request.agent(app)
     await agent.post('/api/v1/auth/login').send({ email: member.email, password: PASSWORD })
     const csrf = agent.jar.getCookie('testpilot_csrf', { domain: '127.0.0.1', path: '/', secure: false, script: false })
 
+    // Workspace settings are only writable through the canonical /current route.
     const res = await agent
-      .patch(`/api/v1/workspaces/${workspace.id}`)
+      .patch('/api/v1/workspaces/current')
       .set('X-CSRF-Token', csrf.value)
       .send({ name: 'Renamed by tester' })
 

@@ -96,39 +96,3 @@ workspacesRouter.delete(
   validate({ params: schemas.memberParamsSchema }),
   asyncHandler(controller.removeCurrentMember),
 )
-
-workspacesRouter.get(
-  '/:workspaceId',
-  validate({ params: schemas.workspaceIdParamSchema }),
-  asyncHandler(controller.getWorkspace),
-)
-workspacesRouter.patch(
-  '/:workspaceId',
-  requireCsrf,
-  validate({ params: schemas.workspaceIdParamSchema, body: schemas.workspaceSettingsSchema }),
-  asyncHandler(controller.updateWorkspaceSettings),
-)
-
-workspacesRouter.get(
-  '/:workspaceId/members',
-  validate({ params: schemas.workspaceIdParamSchema, query: schemas.memberListSchema }),
-  asyncHandler(controller.listMembers),
-)
-workspacesRouter.post(
-  '/:workspaceId/members',
-  requireCsrf,
-  validate({ params: schemas.workspaceIdParamSchema, body: schemas.addMemberSchema }),
-  asyncHandler(controller.addMember),
-)
-workspacesRouter.patch(
-  '/:workspaceId/members/:memberId',
-  requireCsrf,
-  validate({ params: schemas.memberParamsSchema, body: schemas.updateMemberSchema }),
-  asyncHandler(controller.updateMember),
-)
-workspacesRouter.delete(
-  '/:workspaceId/members/:memberId',
-  requireCsrf,
-  validate({ params: schemas.memberParamsSchema }),
-  asyncHandler(controller.removeMember),
-)

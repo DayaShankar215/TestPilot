@@ -2,6 +2,7 @@ import { prisma } from '../../config/database.js'
 import { env } from '../../config/env.js'
 import { ApiError } from '../../utils/apiError.js'
 import { recordActivity } from '../../services/activity.js'
+import { resolveProjectAccess } from '../../services/permissions.js'
 
 const STEP_TEMPLATES = {
   functional: (subject) => [
@@ -123,6 +124,11 @@ export async function generateTestCases(auth, input) {
   let subject = input.description.trim()
   let requirement = null
 
+  // The route is global, so an explicitly scoped project must still be checked.
+  if (input.projectId) {
+    await resolveProjectAccess(auth, input.projectId, { minimumRole: 'tester' })
+  }
+
   if (input.requirementId) {
     requirement = await prisma.requirement.findFirst({
       where: {
@@ -134,6 +140,11 @@ export async function generateTestCases(auth, input) {
     // An unknown reference is not an error: the user may be describing behaviour.
     if (requirement) subject = requirement.description || requirement.title
     else if (!subject) throw ApiError.notFound('Requirement not found.')
+
+    // A requirement reference can resolve to a project the caller cannot read.
+    if (requirement) {
+      await resolveProjectAccess(auth, requirement.projectId, { minimumRole: 'tester' })
+    }
   }
 
   if (!subject) throw ApiError.badRequest('Describe the behaviour you want covered.')

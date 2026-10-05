@@ -13,11 +13,20 @@ const DEFECT_INCLUDE = {
   comments: { include: { author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
 }
 
+/**
+ * The UI labels these fields `expectedResult`/`actualResult`, so responses
+ * carry both names and keep the stored columns as the source of truth.
+ */
+function withUiAliases(defect) {
+  if (!defect) return defect
+  return { ...defect, expectedResult: defect.expectedBehavior, actualResult: defect.actualBehavior }
+}
+
 async function loadDefect(auth, projectId, defectId) {
   await resolveProjectAccess(auth, projectId)
   const defect = await prisma.defect.findFirst({ where: { id: defectId, projectId }, include: DEFECT_INCLUDE })
   if (!defect) throw ApiError.notFound('Defect not found.')
-  return defect
+  return withUiAliases(defect)
 }
 
 export async function listDefects(auth, projectId, query) {
@@ -35,13 +44,15 @@ export async function listDefects(auth, projectId, query) {
     ...(search ? { AND: [search] } : {}),
   }
 
-  return paginate('defect', {
+  const result = await paginate('defect', {
     where,
     include: { assignee: { select: { id: true, name: true } }, reporter: { select: { id: true, name: true } } },
     orderBy: orderBy(query, SORTABLE, 'createdAt'),
     ...paging,
   })
+  return { ...result, items: result.items.map(withUiAliases) }
 }
+
 
 export async function getDefect(auth, projectId, defectId) {
   return loadDefect(auth, projectId, defectId)
@@ -70,8 +81,8 @@ export async function createDefect(auth, projectId, input) {
         title: input.title,
         description: input.description,
         reproductionSteps: input.reproductionSteps,
-        expectedBehavior: input.expectedBehavior ?? null,
-        actualBehavior: input.actualBehavior ?? null,
+        expectedBehavior: input.expectedBehavior ?? input.expectedResult ?? null,
+        actualBehavior: input.actualBehavior ?? input.actualResult ?? null,
         severity: input.severity,
         priority: input.priority,
         status: input.status,
@@ -102,7 +113,7 @@ export async function createDefect(auth, projectId, input) {
     summary: `Logged ${defect.severity} defect: ${defect.title}`,
   })
 
-  return defect
+  return withUiAliases(defect)
 }
 
 export async function updateDefect(auth, projectId, defectId, input) {
@@ -112,8 +123,13 @@ export async function updateDefect(auth, projectId, defectId, input) {
   if (!existing) throw ApiError.notFound('Defect not found.')
 
   const data = {}
-  for (const field of ['title', 'description', 'expectedBehavior', 'actualBehavior', 'severity', 'priority', 'status']) {
+  for (const field of ['title', 'description', 'severity', 'priority', 'status']) {
     if (input[field] !== undefined) data[field] = input[field] ?? null
+  }
+  // Accept either the UI alias or the stored column name.
+  for (const [field, alias] of [['expectedBehavior', 'expectedResult'], ['actualBehavior', 'actualResult']]) {
+    if (input[field] !== undefined) data[field] = input[field] ?? null
+    else if (input[alias] !== undefined) data[field] = input[alias] ?? null
   }
   for (const field of ['assigneeId', 'testCaseId', 'sourceResultId']) {
     if (input[field] !== undefined) data[field] = input[field] ?? null
@@ -153,7 +169,7 @@ export async function updateDefect(auth, projectId, defectId, input) {
     summary: `Updated ${defect.title}`,
   })
 
-  return defect
+  return withUiAliases(defect)
 }
 
 export async function addComment(auth, projectId, defectId, body) {
@@ -227,7 +243,10 @@ export async function retest(auth, projectId, defectId) {
       include: { results: { include: { testCase: { select: { id: true, ref: true, title: true } } } } },
     })
 
-    await tx.defect.update({ where: { id: defectId }, data: { status: 'ready_for_retest' } })
+    await tx.defect.update({
+      where: { id: defectId },
+      data: { status: 'ready_for_retest', retestRunId: created.id },
+    })
     await tx.defectHistory.create({
       data: { defectId, fromStatus: defect.status, toStatus: 'ready_for_retest', note: 'Retest run created', changedById: auth.user.id },
     })

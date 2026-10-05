@@ -4,7 +4,7 @@ import { env } from '../../config/env.js'
 import { ApiError } from '../../utils/apiError.js'
 import { randomToken } from '../../utils/ids.js'
 import { hasWorkspaceRole } from '../../middleware/authorize.js'
-import { PUBLIC_USER_SELECT } from '../../services/auth.service.js'
+import { PUBLIC_USER_SELECT, hashPassword } from '../../services/auth.service.js'
 import { revokeAllUserSessions } from '../../services/sessions.js'
 
 const MAX_OWNERS = 5
@@ -49,7 +49,7 @@ export async function changePassword(auth, { currentPassword, newPassword }) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(newPassword, env.bcryptRounds) },
+    data: { passwordHash: await hashPassword(newPassword) },
   })
   await revokeAllUserSessions(user.id)
 }

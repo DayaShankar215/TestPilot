@@ -183,6 +183,20 @@ const defect = await check('defects.create', () =>
     status: 'open',
     testCaseId: testCase?.id ?? null,
     reproductionSteps: [{ order: 1, action: 'Click the button', expected: 'Nothing happens' }],
+    expectedResult: 'The dialog opens',
+    actualResult: 'The dialog never appears',
+  }),
+)
+// The defect form posts plain-text steps and `expectedResult`/`actualResult`, so
+// that exact payload is exercised too.
+await check('defects.create (UI payload)', () =>
+  endpoints.defectsApi.create(projectId, {
+    title: 'Smoke defect from UI payload',
+    description: 'Plain string steps and UI field aliases.',
+    severity: 'low',
+    reproductionSteps: ['Open settings', 'Click Save'],
+    expectedResult: 'Settings saved',
+    actualResult: 'Nothing happens on save',
   }),
 )
 await check('defects.get', () => endpoints.defectsApi.get(projectId, defect?.id))
