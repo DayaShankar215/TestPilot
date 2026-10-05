@@ -30,9 +30,32 @@ export async function updateProfile(auth, { name, title, avatarUrl, timezone }) 
   })
 }
 
+/**
+ * Password change for the signed-in user. Every other session is revoked so a
+ * stolen cookie cannot survive a credential rotation.
+ */
+export async function changePassword(auth, { currentPassword, newPassword }) {
+  const user = await prisma.user.findUnique({ where: { id: auth.user.id } })
+  if (!user) throw ApiError.notFound('User not found.')
+  if (!user.passwordHash) {
+    throw ApiError.badRequest('This account signs in with SSO, so it has no password to change.')
+  }
+  if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    throw ApiError.unauthorized('Current password is incorrect.')
+  }
+  if (await bcrypt.compare(newPassword, user.passwordHash)) {
+    throw ApiError.badRequest('New password must be different from the current password.')
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash(newPassword, env.bcryptRounds) },
+  })
+  await revokeAllUserSessions(user.id)
+}
+
 /** Directory search inside workspaces the caller belongs to. */
-export async function searchUsers(auth, { search, workspaceId, skip, take }) {
-  const scopedWorkspaceIds = workspaceId ? [workspaceId] : auth.workspaceIds
+export async function searchUsers(auth, { search, workspaceId, skip, take }) {  const scopedWorkspaceIds = workspaceId ? [workspaceId] : auth.workspaceIds
   if (workspaceId && !auth.workspaceIds.includes(workspaceId)) {
     throw ApiError.notFound('Workspace not found.')
   }
