@@ -152,6 +152,7 @@ export async function queueRun(auth, projectId, jobId, input = {}) {
   if (!job) throw ApiError.notFound('Automation job not found.')
   if (!env.AUTOMATION_ENABLED) throw ApiError.forbidden('Automation is disabled on this server.')
   if (!job.enabled) throw ApiError.badRequest('This job is disabled.')
+  if (!job.testCaseLinks.length) throw ApiError.badRequest('Link at least one test case to this job before running it.')
 
   assertHostAllowed(Array.isArray(job.allowedHosts) ? job.allowedHosts : [], job.targetUrl)
 
