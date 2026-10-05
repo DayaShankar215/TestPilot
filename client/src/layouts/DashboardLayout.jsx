@@ -265,8 +265,8 @@ function NotificationBell() {
     let cancelled = false
     notificationsApi
       .list()
-      .then((data) => {
-        if (!cancelled) setItems(data)
+      .then(({ items: rows }) => {
+        if (!cancelled) setItems(rows)
       })
       .catch(() => {
         if (!cancelled) setItems([])
